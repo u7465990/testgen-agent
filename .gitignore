@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+venv/
+.venv/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+openai_key.txt
+api-key.txt
+*.log
+
+# Test outputs
+**/target/testgen-agent/
+**/target/surefire-reports/
+**/target/site/jacoco/
+**/classpath.txt

@@ -1,0 +1,30 @@
+name: generate-tests
+description: Generate JUnit 4 unit tests for any Java project. Discovers methods, generates test targets, generates test code via LLM, and repairs compilation errors.
+command: python main.py generate {{project_path}} --provider {{provider}} --model {{model}} {{flags}}
+arguments:
+  - name: project_path
+    description: Path to the Java project root directory
+    required: true
+  - name: provider
+    description: LLM provider
+    required: false
+    default: openai
+    options:
+      - openai
+      - anthropic
+  - name: model
+    description: LLM model to use
+    required: false
+    default: gpt-4o-mini
+  - name: package
+    description: Only target methods in this package (can be specified multiple times)
+    required: false
+    repeatable: true
+  - name: skip-private
+    description: Skip private methods
+    required: false
+    type: boolean
+    default: false
+  - name: output-dir
+    description: Directory to write generated test files
+    required: false
