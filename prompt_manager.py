@@ -40,6 +40,8 @@ class PromptManager:
             "#{BranchConditions}#": self._format_branch_conditions(
                 method.branch_conditions
             ),
+            "#{JimpleCode}#": method.jimple_code if method.jimple_code
+                              else "// No Jimple IR available",
             "#{ClassContext}#": method.class_context,
             "#{AllowedImports}#": "\n".join(
                 f"import {i};" for i in method.allowed_imports

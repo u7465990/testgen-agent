@@ -9,6 +9,7 @@ Test Generator {
         focal_method_signature: complete method signature including return type, name, and parameter types.
         focal_method_source_code: Java source code of the method body.
         focal_method_branch_conditions: control-flow conditions extracted from the method (if/while/for/switch predicates).
+        focal_method_jimple_code: Jimple intermediate representation showing internal control flow, variable assignments, and branch targets. Useful for understanding how the method behaves at the bytecode level.
         focal_method_class_context: fields, constructors, and other members of the class under test.
         focal_method_allowed_imports: the ONLY import statements you are permitted to use. Any class not listed here (except java.lang) MUST NOT be used.
         focal_method_exceptions: exceptions declared by the focal method, or "none".
@@ -35,6 +36,7 @@ Test Generator {
                 focal_method_signature: ###focal_method_signature
                 focal_method_source_code: ###focal_method_source_code
                 focal_method_branch_conditions: ###focal_method_branch_conditions
+                focal_method_jimple_code: ###focal_method_jimple_code
                 focal_method_class_context: ###focal_method_class_context
                 focal_method_allowed_imports: ###focal_method_allowed_imports
                 focal_method_exceptions: ###focal_method_exceptions

@@ -22,6 +22,9 @@ class AgentConfig:
     temperature: float = 0.2
     max_llm_retries: int = 3
 
+    # ── Extraction ────────────────────────────────────────────
+    extraction_mode: str = "python"  # "python" (javalang) | "sootup" (javalang + Jimple)
+
     # ── Method filtering ──────────────────────────────────────
     include_public: bool = True
     include_private: bool = True

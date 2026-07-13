@@ -22,6 +22,7 @@ def build_config(args: argparse.Namespace) -> AgentConfig:
     """Build AgentConfig from parsed CLI arguments."""
     return AgentConfig(
         project_path=Path(args.project_path),
+        extraction_mode=args.extraction_mode,
         llm_provider=args.provider,
         llm_model=args.model,
         api_key=args.api_key,
@@ -46,7 +47,11 @@ def cmd_analyze(config: AgentConfig) -> None:
     from method_extractor import MethodExtractor
 
     analyzer = JavaProjectAnalyzer(config.project_path)
-    extractor = MethodExtractor(project_name=config.project_path.name)
+    extractor = MethodExtractor(
+        project_name=config.project_path.name,
+        mode=config.extraction_mode,
+        java_home=config.java_home,
+    )
 
     print(f"Project: {config.project_path}")
     print(f"Build tool: {analyzer.detect_build_tool()}")
@@ -140,6 +145,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "project_path",
         help="Path to the Java project root",
+    )
+
+    # Extraction mode
+    parser.add_argument(
+        "--extraction-mode", default="python",
+        choices=["python", "sootup"],
+        help="Extraction backend: 'python' (javalang, default) or 'sootup' (adds Jimple IR)",
     )
 
     # LLM options

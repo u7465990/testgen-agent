@@ -10,6 +10,9 @@
 ###focal_method_branch_conditions
 #{BranchConditions}#
 
+###focal_method_jimple_code
+#{JimpleCode}#
+
 ###focal_method_class_context
 #{ClassContext}#
 

@@ -37,7 +37,11 @@ class TestGeneratorAgent:
 
         # Sub-modules
         self.analyzer = JavaProjectAnalyzer(config.project_path)
-        self.extractor = MethodExtractor(project_name=self.project_name)
+        self.extractor = MethodExtractor(
+            project_name=self.project_name,
+            mode=config.extraction_mode,
+            java_home=config.java_home,
+        )
         self.target_gen = TargetGenerator(
             target_types=config.target_types
         )
