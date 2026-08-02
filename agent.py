@@ -43,7 +43,8 @@ class TestGeneratorAgent:
             java_home=config.java_home,
         )
         self.target_gen = TargetGenerator(
-            target_types=config.target_types
+            target_types=config.target_types,
+            max_tests_per_method=config.max_tests_per_method,
         )
         self.prompt_mgr = PromptManager(
             Path(__file__).parent / "prompts"

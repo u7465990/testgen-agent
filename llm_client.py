@@ -29,7 +29,12 @@ class LLMClient:
             return OpenAI(api_key=api_key)
         elif self.provider == "anthropic":
             from anthropic import Anthropic
-            return Anthropic(api_key=api_key)
+            # Respect ANTHROPIC_BASE_URL so Anthropic-compatible
+            # providers (e.g. DeepSeek) work out of the box.
+            return Anthropic(
+                api_key=api_key,
+                base_url=os.environ.get("ANTHROPIC_BASE_URL"),
+            )
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
@@ -58,7 +63,15 @@ class LLMClient:
                         max_tokens=4096,
                         temperature=self.temperature,
                     )
-                    return response.content[0].text if response.content else ""
+                    # Response may contain ThinkingBlock(s) before the
+                    # final TextBlock (e.g. DeepSeek reasoning models).
+                    # Concatenate only the text blocks.
+                    text = "".join(
+                        block.text
+                        for block in response.content
+                        if getattr(block, "type", "") == "text" and block.text
+                    )
+                    return text
 
             except Exception as e:
                 last_error = e

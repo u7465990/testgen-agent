@@ -65,7 +65,13 @@ class AgentConfig:
             return self.api_key
         if self.llm_provider == "openai":
             return os.environ.get("OPENAI_API_KEY", "")
-        return os.environ.get("ANTHROPIC_API_KEY", "")
+        # Anthropic-compatible endpoints: prefer ANTHROPIC_API_KEY,
+        # fall back to ANTHROPIC_AUTH_TOKEN (used by DeepSeek etc.)
+        return (
+            os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+            or ""
+        )
 
     def get_java_home(self) -> Optional[str]:
         return self.java_home or os.environ.get("JAVA_HOME")

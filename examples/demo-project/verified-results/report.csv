@@ -1,0 +1,2395 @@
+Project,FQN,Signature,SourceCode,BranchConditions,ClassContext,AllowedImports,ThrowsExceptions,Modifiers,GenerationTarget,GeneratedCode,CodeAfterFormatting,SavedPath,Runnable
+demo-project,com.demo.BankAccount.getBalance(),double getBalance(),"public double getBalance() {
+        return balance;
+    }",,"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: . Assert the expected return value or side effect.,"package com.demo;
+
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import com.demo.BankAccount;
+
+public class BankAccount_getBalance_Test_Normal_0 {
+
+
+    @Test
+    public void testGetBalanceReturnsInitialBalance() {
+        BankAccount account = new BankAccount(""Alice"", 1000.0);
+        double result = account.getBalance();
+        assertEquals(1000.0, result, 0.0001);
+    }
+
+}
+","package com.demo;
+
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import com.demo.BankAccount;
+
+public class BankAccount_getBalance_Test_Normal_0 {
+
+
+    @Test
+    public void testGetBalanceReturnsInitialBalance() {
+        BankAccount account = new BankAccount(""Alice"", 1000.0);
+        double result = account.getBalance();
+        assertEquals(1000.0, result, 0.0001);
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_getBalance_Test_Normal_0.java,yes
+demo-project,com.demo.BankAccount.getBalance(),double getBalance(),"public double getBalance() {
+        return balance;
+    }",,"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Path] Write a JUnit 4 test that achieves statement coverage for the method.,"package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+
+public class BankAccount_getBalance_Test_Path_1 {
+
+
+    @Test
+    public void testGetBalanceReturnsConstructorBalance() {
+        BankAccount account = new BankAccount(""Alice"", 250.75);
+        double result = account.getBalance();
+        assertEquals(250.75, result, 0.0);
+    }
+
+}
+","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+
+public class BankAccount_getBalance_Test_Path_1 {
+
+
+    @Test
+    public void testGetBalanceReturnsConstructorBalance() {
+        BankAccount account = new BankAccount(""Alice"", 250.75);
+        double result = account.getBalance();
+        assertEquals(250.75, result, 0.0);
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_getBalance_Test_Path_1.java,yes
+demo-project,com.demo.BankAccount.getOwner(),String getOwner(),"public String getOwner() {
+        return owner;
+    }",,"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: . Assert the expected return value or side effect.,"package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_getOwner_Test_Normal_2 {
+
+
+    @Test
+    public void testGetOwnerReturnsTypicalOwnerName() {
+        BankAccount account = new BankAccount(""Alice"", 1000.0);
+        Assert.assertEquals(""Alice"", account.getOwner());
+    }
+
+}
+","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_getOwner_Test_Normal_2 {
+
+
+    @Test
+    public void testGetOwnerReturnsTypicalOwnerName() {
+        BankAccount account = new BankAccount(""Alice"", 1000.0);
+        Assert.assertEquals(""Alice"", account.getOwner());
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_getOwner_Test_Normal_2.java,yes
+demo-project,com.demo.BankAccount.getOwner(),String getOwner(),"public String getOwner() {
+        return owner;
+    }",,"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Path] Write a JUnit 4 test that achieves statement coverage for the method.,"package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class BankAccount_getOwner_Test_Path_3 {
+
+
+    @Test
+    public void testGetOwnerReturnsOwner() {
+        BankAccount account = new BankAccount(""Alice"", 100.0);
+        assertEquals(""Alice"", account.getOwner());
+    }
+
+}
+","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class BankAccount_getOwner_Test_Path_3 {
+
+
+    @Test
+    public void testGetOwnerReturnsOwner() {
+        BankAccount account = new BankAccount(""Alice"", 100.0);
+        assertEquals(""Alice"", account.getOwner());
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_getOwner_Test_Path_3.java,yes
+demo-project,com.demo.BankAccount.deposit(double),void deposit(double),"public void deposit(double amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException(""Deposit must be positive"");
+        }
+        balance += amount;
+    }",if (amount <= 0),"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0.0, 1.0, -1.0. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_deposit_Dbl_Test_Normal_4 {
+
+
+    @Test
+    public void deposit_withTypicalValues_updatesBalanceAndRejectsNonPositive() {
+        BankAccount account = new BankAccount(""Test Owner"", 0.0);
+
+        account.deposit(1.0);
+        Assert.assertEquals(1.0, balanceOf(account), 0.000001);
+
+        try {
+            account.deposit(0.0);
+            Assert.fail(""Expected IllegalArgumentException for deposit of 0.0"");
+        } catch (IllegalArgumentException e) {
+            Assert.assertEquals(""Deposit must be positive"", e.getMessage());
+        }
+        Assert.assertEquals(1.0, balanceOf(account), 0.000001);
+
+        try {
+            account.deposit(-1.0);
+            Assert.fail(""Expected IllegalArgumentException for deposit of -1.0"");
+        } catch (IllegalArgumentException e) {
+            Assert.assertEquals(""Deposit must be positive"", e.getMessage());
+        }
+        Assert.assertEquals(1.0, balanceOf(account), 0.000001);
+    }
+
+    private static double balanceOf(BankAccount account) {
+        try {
+            java.lang.reflect.Field field = BankAccount.class.getDeclaredField(""balance"");
+            field.setAccessible(true);
+            return ((Number) field.get(account)).doubleValue();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+}","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_deposit_Dbl_Test_Normal_4 {
+
+
+    @Test
+    public void deposit_withTypicalValues_updatesBalanceAndRejectsNonPositive() {
+        BankAccount account = new BankAccount(""Test Owner"", 0.0);
+
+        account.deposit(1.0);
+        Assert.assertEquals(1.0, balanceOf(account), 0.000001);
+
+        try {
+            account.deposit(0.0);
+            Assert.fail(""Expected IllegalArgumentException for deposit of 0.0"");
+        } catch (IllegalArgumentException e) {
+            Assert.assertEquals(""Deposit must be positive"", e.getMessage());
+        }
+        Assert.assertEquals(1.0, balanceOf(account), 0.000001);
+
+        try {
+            account.deposit(-1.0);
+            Assert.fail(""Expected IllegalArgumentException for deposit of -1.0"");
+        } catch (IllegalArgumentException e) {
+            Assert.assertEquals(""Deposit must be positive"", e.getMessage());
+        }
+        Assert.assertEquals(1.0, balanceOf(account), 0.000001);
+    }
+
+    private static double balanceOf(BankAccount account) {
+        try {
+            java.lang.reflect.Field field = BankAccount.class.getDeclaredField(""balance"");
+            field.setAccessible(true);
+            return ((Number) field.get(account)).doubleValue();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+}",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_deposit_Dbl_Test_Normal_4.java,yes
+demo-project,com.demo.BankAccount.deposit(double),void deposit(double),"public void deposit(double amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException(""Deposit must be positive"");
+        }
+        balance += amount;
+    }",if (amount <= 0),"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (amount: double): set it to 0.0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Test;
+
+public class BankAccount_deposit_Dbl_Test_Boundary_5 {
+
+
+    @Test(expected = IllegalArgumentException.class)
+    public void depositZeroAmountThrowsIllegalArgumentException() {
+        BankAccount account = new BankAccount(""Alice"", 100.0);
+        account.deposit(0.0);
+    }
+
+}
+","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Test;
+
+public class BankAccount_deposit_Dbl_Test_Boundary_5 {
+
+
+    @Test(expected = IllegalArgumentException.class)
+    public void depositZeroAmountThrowsIllegalArgumentException() {
+        BankAccount account = new BankAccount(""Alice"", 100.0);
+        account.deposit(0.0);
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_deposit_Dbl_Test_Boundary_5.java,yes
+demo-project,com.demo.BankAccount.withdraw(double),void withdraw(double),"public void withdraw(double amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException(""Withdrawal must be positive"");
+        }
+        if (amount > balance) {
+            throw new IllegalStateException(""Insufficient funds"");
+        }
+        balance -= amount;
+    }",if (amount <= 0); if (amount > balance),"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0.0, 1.0, -1.0. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.BankAccount;
+import java.lang.reflect.Field;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_withdraw_Dbl_Test_Normal_6 {
+
+
+    @Test
+    public void withdraw_NormalTest() throws Exception {
+        BankAccount account = new BankAccount(""Alice"", 10.0);
+
+        account.withdraw(1.0);
+
+        Field balanceField = account.getClass().getDeclaredField(""balance"");
+        balanceField.setAccessible(true);
+        double actualBalance = balanceField.getDouble(account);
+
+        Assert.assertEquals(9.0, actualBalance, 0.0001);
+    }
+
+}
+","package com.demo;
+
+import com.demo.BankAccount;
+import java.lang.reflect.Field;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_withdraw_Dbl_Test_Normal_6 {
+
+
+    @Test
+    public void withdraw_NormalTest() throws Exception {
+        BankAccount account = new BankAccount(""Alice"", 10.0);
+
+        account.withdraw(1.0);
+
+        Field balanceField = account.getClass().getDeclaredField(""balance"");
+        balanceField.setAccessible(true);
+        double actualBalance = balanceField.getDouble(account);
+
+        Assert.assertEquals(9.0, actualBalance, 0.0001);
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_withdraw_Dbl_Test_Normal_6.java,yes
+demo-project,com.demo.BankAccount.withdraw(double),void withdraw(double),"public void withdraw(double amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException(""Withdrawal must be positive"");
+        }
+        if (amount > balance) {
+            throw new IllegalStateException(""Insufficient funds"");
+        }
+        balance -= amount;
+    }",if (amount <= 0); if (amount > balance),"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (amount: double): set it to 0.0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_withdraw_Dbl_Test_Boundary_7 {
+
+
+    @Test
+    public void withdrawWithZeroAmountThrowsIllegalArgumentException() {
+        BankAccount account = new BankAccount(""test"", 100.0);
+
+        try {
+            account.withdraw(0.0);
+            Assert.fail(""Expected IllegalArgumentException for zero amount"");
+        } catch (IllegalArgumentException expected) {
+            Assert.assertEquals(""Withdrawal must be positive"", expected.getMessage());
+        }
+    }
+
+}
+","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_withdraw_Dbl_Test_Boundary_7 {
+
+
+    @Test
+    public void withdrawWithZeroAmountThrowsIllegalArgumentException() {
+        BankAccount account = new BankAccount(""test"", 100.0);
+
+        try {
+            account.withdraw(0.0);
+            Assert.fail(""Expected IllegalArgumentException for zero amount"");
+        } catch (IllegalArgumentException expected) {
+            Assert.assertEquals(""Withdrawal must be positive"", expected.getMessage());
+        }
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_withdraw_Dbl_Test_Boundary_7.java,yes
+demo-project,com.demo.BankAccount.isOverdrawn(),boolean isOverdrawn(),"public boolean isOverdrawn() {
+        return balance < 0;
+    }",,"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: . Assert the expected return value or side effect.,"package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_isOverdrawn_Test_Normal_8 {
+
+
+    @Test
+    public void isOverdrawn_returnsExpectedStatusForNormalBalances() {
+        BankAccount positive = new BankAccount(""Alice"", 100.0);
+        Assert.assertFalse(positive.isOverdrawn());
+
+        BankAccount negative = new BankAccount(""Bob"", -50.0);
+        Assert.assertTrue(negative.isOverdrawn());
+
+        BankAccount zero = new BankAccount(""Carol"", 0.0);
+        Assert.assertFalse(zero.isOverdrawn());
+    }
+
+}
+","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_isOverdrawn_Test_Normal_8 {
+
+
+    @Test
+    public void isOverdrawn_returnsExpectedStatusForNormalBalances() {
+        BankAccount positive = new BankAccount(""Alice"", 100.0);
+        Assert.assertFalse(positive.isOverdrawn());
+
+        BankAccount negative = new BankAccount(""Bob"", -50.0);
+        Assert.assertTrue(negative.isOverdrawn());
+
+        BankAccount zero = new BankAccount(""Carol"", 0.0);
+        Assert.assertFalse(zero.isOverdrawn());
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_isOverdrawn_Test_Normal_8.java,yes
+demo-project,com.demo.BankAccount.isOverdrawn(),boolean isOverdrawn(),"public boolean isOverdrawn() {
+        return balance < 0;
+    }",,"class context:
+  double balance;
+  String owner;
+  BankAccount(String owner, double initialBalance);","com.demo.BankAccount
+com.demo.BankAccount.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Path] Write a JUnit 4 test that achieves statement coverage for the method.,"package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_isOverdrawn_Test_Path_9 {
+
+
+    @Test
+    public void testIsOverdrawnCoversBothPaths() {
+        BankAccount overdrawn = new BankAccount(""Alice"", -1.0);
+        Assert.assertTrue(""Negative balance should be considered overdrawn"", overdrawn.isOverdrawn());
+
+        BankAccount zeroBalance = new BankAccount(""Bob"", 0.0);
+        Assert.assertFalse(""Zero balance should not be considered overdrawn"", zeroBalance.isOverdrawn());
+
+        BankAccount positiveBalance = new BankAccount(""Carol"", 100.0);
+        Assert.assertFalse(""Positive balance should not be considered overdrawn"", positiveBalance.isOverdrawn());
+    }
+
+}
+","package com.demo;
+
+import com.demo.BankAccount;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class BankAccount_isOverdrawn_Test_Path_9 {
+
+
+    @Test
+    public void testIsOverdrawnCoversBothPaths() {
+        BankAccount overdrawn = new BankAccount(""Alice"", -1.0);
+        Assert.assertTrue(""Negative balance should be considered overdrawn"", overdrawn.isOverdrawn());
+
+        BankAccount zeroBalance = new BankAccount(""Bob"", 0.0);
+        Assert.assertFalse(""Zero balance should not be considered overdrawn"", zeroBalance.isOverdrawn());
+
+        BankAccount positiveBalance = new BankAccount(""Carol"", 100.0);
+        Assert.assertFalse(""Positive balance should not be considered overdrawn"", positiveBalance.isOverdrawn());
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\BankAccount_isOverdrawn_Test_Path_9.java,yes
+demo-project,"com.demo.Calculator.add(int,int)","int add(int, int)","public int add(int a, int b) {
+        return a + b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0, 1, -1; 0, 1, -1. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_add_int_int_Test_Normal_10 {
+
+
+    @Test
+    public void testAddWithTypicalValues() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(0, calculator.add(0, 0));
+        Assert.assertEquals(1, calculator.add(0, 1));
+        Assert.assertEquals(-1, calculator.add(0, -1));
+        Assert.assertEquals(1, calculator.add(1, 0));
+        Assert.assertEquals(2, calculator.add(1, 1));
+        Assert.assertEquals(0, calculator.add(1, -1));
+        Assert.assertEquals(-1, calculator.add(-1, 0));
+        Assert.assertEquals(0, calculator.add(-1, 1));
+        Assert.assertEquals(-2, calculator.add(-1, -1));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_add_int_int_Test_Normal_10 {
+
+
+    @Test
+    public void testAddWithTypicalValues() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(0, calculator.add(0, 0));
+        Assert.assertEquals(1, calculator.add(0, 1));
+        Assert.assertEquals(-1, calculator.add(0, -1));
+        Assert.assertEquals(1, calculator.add(1, 0));
+        Assert.assertEquals(2, calculator.add(1, 1));
+        Assert.assertEquals(0, calculator.add(1, -1));
+        Assert.assertEquals(-1, calculator.add(-1, 0));
+        Assert.assertEquals(0, calculator.add(-1, 1));
+        Assert.assertEquals(-2, calculator.add(-1, -1));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_add_int_int_Test_Normal_10.java,yes
+demo-project,"com.demo.Calculator.add(int,int)","int add(int, int)","public int add(int a, int b) {
+        return a + b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (a: int): set it to 0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_add_int_int_Test_Boundary_11 {
+
+    @Test
+    public void testAddWithZeroAsFirstParameter() {
+        Calculator calculator = new Calculator();
+        int result = calculator.add(0, 5);
+        Assert.assertEquals(5, result);
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_add_int_int_Test_Boundary_11 {
+
+    @Test
+    public void testAddWithZeroAsFirstParameter() {
+        Calculator calculator = new Calculator();
+        int result = calculator.add(0, 5);
+        Assert.assertEquals(5, result);
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_add_int_int_Test_Boundary_11.java,yes
+demo-project,"com.demo.Calculator.subtract(int,int)","int subtract(int, int)","public int subtract(int a, int b) {
+        return a - b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0, 1, -1; 0, 1, -1. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_subtract_int_int_Test_Normal_12 {
+
+    @Test
+    public void testSubtractNormal() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.subtract(0, 0));
+        Assert.assertEquals(1, calculator.subtract(1, 0));
+        Assert.assertEquals(-1, calculator.subtract(0, 1));
+        Assert.assertEquals(-1, calculator.subtract(-1, 0));
+        Assert.assertEquals(1, calculator.subtract(0, -1));
+        Assert.assertEquals(2, calculator.subtract(1, -1));
+        Assert.assertEquals(-2, calculator.subtract(-1, 1));
+    }
+}","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_subtract_int_int_Test_Normal_12 {
+
+    @Test
+    public void testSubtractNormal() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.subtract(0, 0));
+        Assert.assertEquals(1, calculator.subtract(1, 0));
+        Assert.assertEquals(-1, calculator.subtract(0, 1));
+        Assert.assertEquals(-1, calculator.subtract(-1, 0));
+        Assert.assertEquals(1, calculator.subtract(0, -1));
+        Assert.assertEquals(2, calculator.subtract(1, -1));
+        Assert.assertEquals(-2, calculator.subtract(-1, 1));
+    }
+}",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_subtract_int_int_Test_Normal_12.java,yes
+demo-project,"com.demo.Calculator.subtract(int,int)","int subtract(int, int)","public int subtract(int a, int b) {
+        return a - b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (a: int): set it to 0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_subtract_int_int_Test_Boundary_13 {
+
+
+    @Test
+    public void subtract_withZeroMinuend_returnsNegativeSubtrahend() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(-5, calculator.subtract(0, 5));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_subtract_int_int_Test_Boundary_13 {
+
+
+    @Test
+    public void subtract_withZeroMinuend_returnsNegativeSubtrahend() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(-5, calculator.subtract(0, 5));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_subtract_int_int_Test_Boundary_13.java,yes
+demo-project,"com.demo.Calculator.multiply(int,int)","int multiply(int, int)","public int multiply(int a, int b) {
+        return a * b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0, 1, -1; 0, 1, -1. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_multiply_int_int_Test_Normal_14 {
+
+
+    @Test
+    public void testMultiplyWithRepresentativeInputs() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.multiply(0, 0));
+        Assert.assertEquals(0, calculator.multiply(0, 1));
+        Assert.assertEquals(0, calculator.multiply(1, 0));
+        Assert.assertEquals(1, calculator.multiply(1, 1));
+        Assert.assertEquals(-1, calculator.multiply(-1, 1));
+        Assert.assertEquals(-1, calculator.multiply(1, -1));
+        Assert.assertEquals(1, calculator.multiply(-1, -1));
+        Assert.assertEquals(6, calculator.multiply(2, 3));
+    }
+
+}","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_multiply_int_int_Test_Normal_14 {
+
+
+    @Test
+    public void testMultiplyWithRepresentativeInputs() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.multiply(0, 0));
+        Assert.assertEquals(0, calculator.multiply(0, 1));
+        Assert.assertEquals(0, calculator.multiply(1, 0));
+        Assert.assertEquals(1, calculator.multiply(1, 1));
+        Assert.assertEquals(-1, calculator.multiply(-1, 1));
+        Assert.assertEquals(-1, calculator.multiply(1, -1));
+        Assert.assertEquals(1, calculator.multiply(-1, -1));
+        Assert.assertEquals(6, calculator.multiply(2, 3));
+    }
+
+}",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_multiply_int_int_Test_Normal_14.java,yes
+demo-project,"com.demo.Calculator.multiply(int,int)","int multiply(int, int)","public int multiply(int a, int b) {
+        return a * b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (a: int): set it to 0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_multiply_int_int_Test_Boundary_15 {
+
+    @Test
+    public void testMultiplyWithBoundaryValueZero() {
+        Calculator calculator = new Calculator();
+        int result = calculator.multiply(0, 5);
+        Assert.assertEquals(0, result);
+    }
+
+}","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_multiply_int_int_Test_Boundary_15 {
+
+    @Test
+    public void testMultiplyWithBoundaryValueZero() {
+        Calculator calculator = new Calculator();
+        int result = calculator.multiply(0, 5);
+        Assert.assertEquals(0, result);
+    }
+
+}",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_multiply_int_int_Test_Boundary_15.java,yes
+demo-project,"com.demo.Calculator.divide(int,int)","int divide(int, int)","public int divide(int a, int b) {
+        if (b == 0) {
+            throw new IllegalArgumentException(""Cannot divide by zero"");
+        }
+        return a / b;
+    }",if (b == 0),,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0, 1, -1; 0, 1, -1. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_divide_int_int_Test_Normal_16 {
+
+
+    @Test
+    public void divide_typicalValues_returnsQuotient() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.divide(0, 1));
+        Assert.assertEquals(0, calculator.divide(0, -1));
+        Assert.assertEquals(1, calculator.divide(1, 1));
+        Assert.assertEquals(-1, calculator.divide(1, -1));
+        Assert.assertEquals(-1, calculator.divide(-1, 1));
+        Assert.assertEquals(1, calculator.divide(-1, -1));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_divide_int_int_Test_Normal_16 {
+
+
+    @Test
+    public void divide_typicalValues_returnsQuotient() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.divide(0, 1));
+        Assert.assertEquals(0, calculator.divide(0, -1));
+        Assert.assertEquals(1, calculator.divide(1, 1));
+        Assert.assertEquals(-1, calculator.divide(1, -1));
+        Assert.assertEquals(-1, calculator.divide(-1, 1));
+        Assert.assertEquals(1, calculator.divide(-1, -1));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_divide_int_int_Test_Normal_16.java,yes
+demo-project,"com.demo.Calculator.divide(int,int)","int divide(int, int)","public int divide(int a, int b) {
+        if (b == 0) {
+            throw new IllegalArgumentException(""Cannot divide by zero"");
+        }
+        return a / b;
+    }",if (b == 0),,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (a: int): set it to 0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_divide_int_int_Test_Boundary_17 {
+
+
+    @Test
+    public void divide_withZeroDividend_returnsZero() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(0, calculator.divide(0, 2));
+        Assert.assertEquals(0, calculator.divide(0, -5));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_divide_int_int_Test_Boundary_17 {
+
+
+    @Test
+    public void divide_withZeroDividend_returnsZero() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(0, calculator.divide(0, 2));
+        Assert.assertEquals(0, calculator.divide(0, -5));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_divide_int_int_Test_Boundary_17.java,yes
+demo-project,"com.demo.Calculator.max(int,int)","int max(int, int)","public int max(int a, int b) {
+        return a >= b ? a : b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0, 1, -1; 0, 1, -1. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_max_int_int_Test_Normal_18 {
+
+
+    @Test
+    public void maxWithRepresentativeValidInputs() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.max(0, 0));
+        Assert.assertEquals(1, calculator.max(0, 1));
+        Assert.assertEquals(0, calculator.max(0, -1));
+
+        Assert.assertEquals(1, calculator.max(1, 0));
+        Assert.assertEquals(1, calculator.max(1, 1));
+        Assert.assertEquals(1, calculator.max(1, -1));
+
+        Assert.assertEquals(0, calculator.max(-1, 0));
+        Assert.assertEquals(1, calculator.max(-1, 1));
+        Assert.assertEquals(-1, calculator.max(-1, -1));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_max_int_int_Test_Normal_18 {
+
+
+    @Test
+    public void maxWithRepresentativeValidInputs() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.max(0, 0));
+        Assert.assertEquals(1, calculator.max(0, 1));
+        Assert.assertEquals(0, calculator.max(0, -1));
+
+        Assert.assertEquals(1, calculator.max(1, 0));
+        Assert.assertEquals(1, calculator.max(1, 1));
+        Assert.assertEquals(1, calculator.max(1, -1));
+
+        Assert.assertEquals(0, calculator.max(-1, 0));
+        Assert.assertEquals(1, calculator.max(-1, 1));
+        Assert.assertEquals(-1, calculator.max(-1, -1));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_max_int_int_Test_Normal_18.java,yes
+demo-project,"com.demo.Calculator.max(int,int)","int max(int, int)","public int max(int a, int b) {
+        return a >= b ? a : b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (a: int): set it to 0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+
+public class Calculator_max_int_int_Test_Boundary_19 {
+
+
+    @Test
+    public void testMaxWithBoundaryA() {
+        Calculator calculator = new Calculator();
+        int result = calculator.max(0, 5);
+        assertEquals(5, result);
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+
+public class Calculator_max_int_int_Test_Boundary_19 {
+
+
+    @Test
+    public void testMaxWithBoundaryA() {
+        Calculator calculator = new Calculator();
+        int result = calculator.max(0, 5);
+        assertEquals(5, result);
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_max_int_int_Test_Boundary_19.java,yes
+demo-project,"com.demo.Calculator.min(int,int)","int min(int, int)","public int min(int a, int b) {
+        return a <= b ? a : b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0, 1, -1; 0, 1, -1. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_min_int_int_Test_Normal_20 {
+
+
+    @Test
+    public void min_returnsMinimumForTypicalValues() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.min(0, 1));
+        Assert.assertEquals(-1, calculator.min(1, -1));
+        Assert.assertEquals(-1, calculator.min(-1, 0));
+        Assert.assertEquals(-1, calculator.min(-1, 1));
+        Assert.assertEquals(0, calculator.min(-0, 0));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_min_int_int_Test_Normal_20 {
+
+
+    @Test
+    public void min_returnsMinimumForTypicalValues() {
+        Calculator calculator = new Calculator();
+
+        Assert.assertEquals(0, calculator.min(0, 1));
+        Assert.assertEquals(-1, calculator.min(1, -1));
+        Assert.assertEquals(-1, calculator.min(-1, 0));
+        Assert.assertEquals(-1, calculator.min(-1, 1));
+        Assert.assertEquals(0, calculator.min(-0, 0));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_min_int_int_Test_Normal_20.java,yes
+demo-project,"com.demo.Calculator.min(int,int)","int min(int, int)","public int min(int a, int b) {
+        return a <= b ? a : b;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (a: int): set it to 0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_min_int_int_Test_Boundary_21 {
+
+
+    @Test
+    public void testMinWithABoundaryZero() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(0, calculator.min(0, 0));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_min_int_int_Test_Boundary_21 {
+
+
+    @Test
+    public void testMinWithABoundaryZero() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(0, calculator.min(0, 0));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_min_int_int_Test_Boundary_21.java,yes
+demo-project,com.demo.Calculator.abs(int),int abs(int),"public int abs(int a) {
+        return a < 0 ? -a : a;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: 0, 1, -1. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_abs_int_Test_Normal_22 {
+
+    @Test
+    public void abs_typicalValues_returnsExpected() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(0, calculator.abs(0));
+        Assert.assertEquals(1, calculator.abs(1));
+        Assert.assertEquals(1, calculator.abs(-1));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class Calculator_abs_int_Test_Normal_22 {
+
+    @Test
+    public void abs_typicalValues_returnsExpected() {
+        Calculator calculator = new Calculator();
+        Assert.assertEquals(0, calculator.abs(0));
+        Assert.assertEquals(1, calculator.abs(1));
+        Assert.assertEquals(1, calculator.abs(-1));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_abs_int_Test_Normal_22.java,yes
+demo-project,com.demo.Calculator.abs(int),int abs(int),"public int abs(int a) {
+        return a < 0 ? -a : a;
+    }",,,"com.demo.Calculator
+com.demo.Calculator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (a: int): set it to 0. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+
+public class Calculator_abs_int_Test_Boundary_23 {
+
+
+    @Test
+    public void testAbsBoundaryZero() {
+        Calculator calculator = new Calculator();
+        assertEquals(0, calculator.abs(0));
+    }
+
+}
+","package com.demo;
+
+import com.demo.Calculator;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+
+public class Calculator_abs_int_Test_Boundary_23 {
+
+
+    @Test
+    public void testAbsBoundaryZero() {
+        Calculator calculator = new Calculator();
+        assertEquals(0, calculator.abs(0));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\Calculator_abs_int_Test_Boundary_23.java,yes
+demo-project,com.demo.PasswordValidator.isValid(String),boolean isValid(String),"public boolean isValid(String password) {
+        if (password == null) {
+            return false;
+        }
+        if (password.length() < 8) {
+            return false;
+        }
+        if (password.length() > 64) {
+            return false;
+        }
+        return hasUpper(password) && hasDigit(password);
+    }",if (password == null); if (password.length(),,"com.demo.PasswordValidator
+com.demo.PasswordValidator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: ""test"" or """". Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.PasswordValidator;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class PasswordValidator_isValid_Str_Test_Normal_24 {
+
+
+    @Test
+    public void isValid_withTypicalInputs_returnsExpectedResult() {
+        PasswordValidator validator = new PasswordValidator();
+
+        assertFalse(validator.isValid(""""));
+        assertFalse(validator.isValid(""test""));
+        assertTrue(validator.isValid(""Password1""));
+    }
+
+}
+","package com.demo;
+
+import com.demo.PasswordValidator;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class PasswordValidator_isValid_Str_Test_Normal_24 {
+
+
+    @Test
+    public void isValid_withTypicalInputs_returnsExpectedResult() {
+        PasswordValidator validator = new PasswordValidator();
+
+        assertFalse(validator.isValid(""""));
+        assertFalse(validator.isValid(""test""));
+        assertTrue(validator.isValid(""Password1""));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\PasswordValidator_isValid_Str_Test_Normal_24.java,yes
+demo-project,com.demo.PasswordValidator.isValid(String),boolean isValid(String),"public boolean isValid(String password) {
+        if (password == null) {
+            return false;
+        }
+        if (password.length() < 8) {
+            return false;
+        }
+        if (password.length() > 64) {
+            return false;
+        }
+        return hasUpper(password) && hasDigit(password);
+    }",if (password == null); if (password.length(),,"com.demo.PasswordValidator
+com.demo.PasswordValidator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (password: String): set it to null. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.PasswordValidator;
+import static org.junit.Assert.assertFalse;
+import org.junit.Test;
+
+public class PasswordValidator_isValid_Str_Test_Boundary_25 {
+
+
+    @Test
+    public void testIsValidWithNullPasswordReturnsFalse() {
+        PasswordValidator validator = new PasswordValidator();
+        assertFalse(validator.isValid(null));
+    }
+
+}
+","package com.demo;
+
+import com.demo.PasswordValidator;
+import static org.junit.Assert.assertFalse;
+import org.junit.Test;
+
+public class PasswordValidator_isValid_Str_Test_Boundary_25 {
+
+
+    @Test
+    public void testIsValidWithNullPasswordReturnsFalse() {
+        PasswordValidator validator = new PasswordValidator();
+        assertFalse(validator.isValid(null));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\PasswordValidator_isValid_Str_Test_Boundary_25.java,yes
+demo-project,com.demo.PasswordValidator.hasUpper(String),boolean hasUpper(String),"return hasUpper(password) && hasDigit(password);
+    }
+
+    private boolean hasUpper(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isUpperCase(s.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }",if (Character.isUpperCase(s.charAt(i); for (int i = 0; i < s.length();,,"com.demo.PasswordValidator
+com.demo.PasswordValidator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,private,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: ""test"" or """". Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.PasswordValidator;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class PasswordValidator_hasUpper_Str_Test_Normal_26 {
+
+
+    @Test
+    public void hasUpper_WithTypicalInputs_ReturnsExpectedResult() {
+        try {
+            PasswordValidator validator = new PasswordValidator();
+            Method method = PasswordValidator.class.getDeclaredMethod(""hasUpper"", String.class);
+            method.setAccessible(true);
+
+            Boolean resultForLowerCase = (Boolean) method.invoke(validator, ""test"");
+            Assert.assertFalse(""Expected false for 'test'"", resultForLowerCase.booleanValue());
+
+            Boolean resultForEmpty = (Boolean) method.invoke(validator, """");
+            Assert.assertFalse(""Expected false for ''"", resultForEmpty.booleanValue());
+        } catch (IllegalAccessException e) {
+            Assert.fail(""Unexpected IllegalAccessException: "" + e.getMessage());
+        } catch (InvocationTargetException e) {
+            Assert.fail(""Unexpected InvocationTargetException: "" + e.getMessage());
+        } catch (NoSuchMethodException e) {
+            Assert.fail(""Unexpected NoSuchMethodException: "" + e.getMessage());
+        }
+    }
+
+}","package com.demo;
+
+import com.demo.PasswordValidator;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class PasswordValidator_hasUpper_Str_Test_Normal_26 {
+
+
+    @Test
+    public void hasUpper_WithTypicalInputs_ReturnsExpectedResult() {
+        try {
+            PasswordValidator validator = new PasswordValidator();
+            Method method = PasswordValidator.class.getDeclaredMethod(""hasUpper"", String.class);
+            method.setAccessible(true);
+
+            Boolean resultForLowerCase = (Boolean) method.invoke(validator, ""test"");
+            Assert.assertFalse(""Expected false for 'test'"", resultForLowerCase.booleanValue());
+
+            Boolean resultForEmpty = (Boolean) method.invoke(validator, """");
+            Assert.assertFalse(""Expected false for ''"", resultForEmpty.booleanValue());
+        } catch (IllegalAccessException e) {
+            Assert.fail(""Unexpected IllegalAccessException: "" + e.getMessage());
+        } catch (InvocationTargetException e) {
+            Assert.fail(""Unexpected InvocationTargetException: "" + e.getMessage());
+        } catch (NoSuchMethodException e) {
+            Assert.fail(""Unexpected NoSuchMethodException: "" + e.getMessage());
+        }
+    }
+
+}",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\PasswordValidator_hasUpper_Str_Test_Normal_26.java,yes
+demo-project,com.demo.PasswordValidator.hasUpper(String),boolean hasUpper(String),"return hasUpper(password) && hasDigit(password);
+    }
+
+    private boolean hasUpper(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isUpperCase(s.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }",if (Character.isUpperCase(s.charAt(i); for (int i = 0; i < s.length();,,"com.demo.PasswordValidator
+com.demo.PasswordValidator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,private,[Boundary] Test with boundary input for parameter 0 (s: String): set it to null. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.PasswordValidator;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class PasswordValidator_hasUpper_Str_Test_Boundary_27 {
+
+
+    @Test
+    public void testHasUpperNullInputThrowsNullPointerException() throws Exception {
+        PasswordValidator validator = new PasswordValidator();
+        Method method = PasswordValidator.class.getDeclaredMethod(""hasUpper"", String.class);
+        method.setAccessible(true);
+
+        try {
+            method.invoke(validator, new Object[] { null });
+            fail(""Expected NullPointerException for null input"");
+        } catch (InvocationTargetException e) {
+            assertTrue(""Expected cause to be NullPointerException"", e.getCause() instanceof NullPointerException);
+        }
+    }
+
+}
+","package com.demo;
+
+import com.demo.PasswordValidator;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class PasswordValidator_hasUpper_Str_Test_Boundary_27 {
+
+
+    @Test
+    public void testHasUpperNullInputThrowsNullPointerException() throws Exception {
+        PasswordValidator validator = new PasswordValidator();
+        Method method = PasswordValidator.class.getDeclaredMethod(""hasUpper"", String.class);
+        method.setAccessible(true);
+
+        try {
+            method.invoke(validator, new Object[] { null });
+            fail(""Expected NullPointerException for null input"");
+        } catch (InvocationTargetException e) {
+            assertTrue(""Expected cause to be NullPointerException"", e.getCause() instanceof NullPointerException);
+        }
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\PasswordValidator_hasUpper_Str_Test_Boundary_27.java,yes
+demo-project,com.demo.PasswordValidator.hasDigit(String),boolean hasDigit(String),"return hasUpper(password) && hasDigit(password);
+    }
+
+    private boolean hasUpper(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isUpperCase(s.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }",if (Character.isUpperCase(s.charAt(i); for (int i = 0; i < s.length();,,"com.demo.PasswordValidator
+com.demo.PasswordValidator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,private,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: ""test"" or """". Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.PasswordValidator;
+import java.lang.reflect.Method;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class PasswordValidator_hasDigit_Str_Test_Normal_28 {
+
+
+    @Test
+    public void hasDigitReturnsFalseForTestAndEmpty() throws Exception {
+        PasswordValidator validator = new PasswordValidator();
+        Method method = PasswordValidator.class.getDeclaredMethod(""hasDigit"", String.class);
+        method.setAccessible(true);
+
+        Assert.assertFalse((Boolean) method.invoke(validator, ""test""));
+        Assert.assertFalse((Boolean) method.invoke(validator, """"));
+    }
+
+}
+","package com.demo;
+
+import com.demo.PasswordValidator;
+import java.lang.reflect.Method;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class PasswordValidator_hasDigit_Str_Test_Normal_28 {
+
+
+    @Test
+    public void hasDigitReturnsFalseForTestAndEmpty() throws Exception {
+        PasswordValidator validator = new PasswordValidator();
+        Method method = PasswordValidator.class.getDeclaredMethod(""hasDigit"", String.class);
+        method.setAccessible(true);
+
+        Assert.assertFalse((Boolean) method.invoke(validator, ""test""));
+        Assert.assertFalse((Boolean) method.invoke(validator, """"));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\PasswordValidator_hasDigit_Str_Test_Normal_28.java,yes
+demo-project,com.demo.PasswordValidator.hasDigit(String),boolean hasDigit(String),"return hasUpper(password) && hasDigit(password);
+    }
+
+    private boolean hasUpper(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isUpperCase(s.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }",if (Character.isUpperCase(s.charAt(i); for (int i = 0; i < s.length();,,"com.demo.PasswordValidator
+com.demo.PasswordValidator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,private,[Boundary] Test with boundary input for parameter 0 (s: String): set it to null. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+
+
+public class PasswordValidator_hasDigit_Str_Test_Boundary_29 {
+
+}
+","package com.demo;
+
+
+
+public class PasswordValidator_hasDigit_Str_Test_Boundary_29 {
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\PasswordValidator_hasDigit_Str_Test_Boundary_29.java,yes
+demo-project,com.demo.PasswordValidator.strength(String),String strength(String),"public String strength(String password) {
+        if (!isValid(password)) {
+            return ""weak"";
+        }
+        return ""strong"";
+    }",if (!isValid(password),,"com.demo.PasswordValidator
+com.demo.PasswordValidator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: ""test"" or """". Assert the expected return value or side effect.","package com.demo;
+
+
+
+public class PasswordValidator_strength_Str_Test_Normal_30 {
+
+}
+","package com.demo;
+
+
+
+public class PasswordValidator_strength_Str_Test_Normal_30 {
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\PasswordValidator_strength_Str_Test_Normal_30.java,yes
+demo-project,com.demo.PasswordValidator.strength(String),String strength(String),"public String strength(String password) {
+        if (!isValid(password)) {
+            return ""weak"";
+        }
+        return ""strong"";
+    }",if (!isValid(password),,"com.demo.PasswordValidator
+com.demo.PasswordValidator.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,public,[Boundary] Test with boundary input for parameter 0 (password: String): set it to null. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.PasswordValidator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class PasswordValidator_strength_Str_Test_Boundary_31 {
+
+
+    @Test
+    public void strengthWithNullReturnsWeak() {
+        PasswordValidator validator = new PasswordValidator();
+        Assert.assertEquals(""weak"", validator.strength(null));
+    }
+
+}
+","package com.demo;
+
+import com.demo.PasswordValidator;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class PasswordValidator_strength_Str_Test_Boundary_31 {
+
+
+    @Test
+    public void strengthWithNullReturnsWeak() {
+        PasswordValidator validator = new PasswordValidator();
+        Assert.assertEquals(""weak"", validator.strength(null));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\PasswordValidator_strength_Str_Test_Boundary_31.java,yes
+demo-project,com.demo.TextUtil.isEmpty(String),boolean isEmpty(String),"public static boolean isEmpty(String s) {
+        return s == null || s.length() == 0;
+    }",,"class context:
+  TextUtil();","com.demo.TextUtil
+com.demo.TextUtil.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,static public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: ""test"" or """". Assert the expected return value or side effect.","package com.demo;
+
+import static org.junit.Assert.*;
+import org.junit.Test;
+import com.demo.TextUtil;
+
+public class TextUtil_isEmpty_Str_Test_Normal_32 {
+
+
+    @Test
+    public void testIsEmptyWithTypicalValues() {
+        assertFalse(TextUtil.isEmpty(""test""));
+        assertTrue(TextUtil.isEmpty(""""));
+    }
+
+}
+","package com.demo;
+
+import static org.junit.Assert.*;
+import org.junit.Test;
+import com.demo.TextUtil;
+
+public class TextUtil_isEmpty_Str_Test_Normal_32 {
+
+
+    @Test
+    public void testIsEmptyWithTypicalValues() {
+        assertFalse(TextUtil.isEmpty(""test""));
+        assertTrue(TextUtil.isEmpty(""""));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\TextUtil_isEmpty_Str_Test_Normal_32.java,yes
+demo-project,com.demo.TextUtil.isEmpty(String),boolean isEmpty(String),"public static boolean isEmpty(String s) {
+        return s == null || s.length() == 0;
+    }",,"class context:
+  TextUtil();","com.demo.TextUtil
+com.demo.TextUtil.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,static public,[Boundary] Test with boundary input for parameter 0 (s: String): set it to null. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TextUtil_isEmpty_Str_Test_Boundary_33 {
+
+
+    @Test
+    public void isEmpty_ShouldReturnTrue_WhenInputIsNull() {
+        Assert.assertTrue(TextUtil.isEmpty(null));
+    }
+
+}
+","package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TextUtil_isEmpty_Str_Test_Boundary_33 {
+
+
+    @Test
+    public void isEmpty_ShouldReturnTrue_WhenInputIsNull() {
+        Assert.assertTrue(TextUtil.isEmpty(null));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\TextUtil_isEmpty_Str_Test_Boundary_33.java,yes
+demo-project,"com.demo.TextUtil.truncate(String,int)","String truncate(String, int)","public static String truncate(String s, int maxLength) {
+        if (s == null) {
+            return null;
+        }
+        if (maxLength < 0) {
+            throw new IllegalArgumentException(""maxLength cannot be negative"");
+        }
+        if (s.length() <= maxLength) {
+            return s;
+        }
+        return s.substring(0, maxLength) + ""..."";
+    }",if (s == null); if (maxLength < 0); if (s.length(),"class context:
+  TextUtil();","com.demo.TextUtil
+com.demo.TextUtil.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,static public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: ""test"" or """"; 0, 1, -1. Assert the expected return value or side effect.","package com.demo;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class TextUtil_truncate_Str_int_Test_Normal_34 {
+
+
+    @Test
+    public void truncateWithTypicalValues() {
+        assertEquals(""..."", TextUtil.truncate(""test"", 0));
+        assertEquals(""t..."", TextUtil.truncate(""test"", 1));
+        assertEquals(""test"", TextUtil.truncate(""test"", 4));
+        assertEquals("""", TextUtil.truncate("""", 0));
+        assertEquals("""", TextUtil.truncate("""", 1));
+
+        try {
+            TextUtil.truncate(""test"", -1);
+            fail(""Expected IllegalArgumentException for negative maxLength"");
+        } catch (IllegalArgumentException expected) {
+        }
+    }
+
+}
+","package com.demo;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class TextUtil_truncate_Str_int_Test_Normal_34 {
+
+
+    @Test
+    public void truncateWithTypicalValues() {
+        assertEquals(""..."", TextUtil.truncate(""test"", 0));
+        assertEquals(""t..."", TextUtil.truncate(""test"", 1));
+        assertEquals(""test"", TextUtil.truncate(""test"", 4));
+        assertEquals("""", TextUtil.truncate("""", 0));
+        assertEquals("""", TextUtil.truncate("""", 1));
+
+        try {
+            TextUtil.truncate(""test"", -1);
+            fail(""Expected IllegalArgumentException for negative maxLength"");
+        } catch (IllegalArgumentException expected) {
+        }
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\TextUtil_truncate_Str_int_Test_Normal_34.java,yes
+demo-project,"com.demo.TextUtil.truncate(String,int)","String truncate(String, int)","public static String truncate(String s, int maxLength) {
+        if (s == null) {
+            return null;
+        }
+        if (maxLength < 0) {
+            throw new IllegalArgumentException(""maxLength cannot be negative"");
+        }
+        if (s.length() <= maxLength) {
+            return s;
+        }
+        return s.substring(0, maxLength) + ""..."";
+    }",if (s == null); if (maxLength < 0); if (s.length(),"class context:
+  TextUtil();","com.demo.TextUtil
+com.demo.TextUtil.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,static public,[Boundary] Test with boundary input for parameter 0 (s: String): set it to null. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TextUtil_truncate_Str_int_Test_Boundary_35 {
+
+
+    @Test
+    public void truncate_withNullString_returnsNull() {
+        String result = TextUtil.truncate(null, 10);
+        Assert.assertNull(result);
+    }
+
+}
+","package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TextUtil_truncate_Str_int_Test_Boundary_35 {
+
+
+    @Test
+    public void truncate_withNullString_returnsNull() {
+        String result = TextUtil.truncate(null, 10);
+        Assert.assertNull(result);
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\TextUtil_truncate_Str_int_Test_Boundary_35.java,yes
+demo-project,com.demo.TextUtil.reverse(String),String reverse(String),"public static String reverse(String s) {
+        if (s == null) {
+            return null;
+        }
+        return new StringBuilder(s).reverse().toString();
+    }",if (s == null),"class context:
+  TextUtil();","com.demo.TextUtil
+com.demo.TextUtil.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,static public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: ""test"" or """". Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TextUtil_reverse_Str_Test_Normal_36 {
+
+
+    @Test
+    public void reverse_typicalInput_returnsReversedString() {
+        Assert.assertEquals(""tset"", TextUtil.reverse(""test""));
+        Assert.assertEquals("""", TextUtil.reverse(""""));
+    }
+
+}
+","package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TextUtil_reverse_Str_Test_Normal_36 {
+
+
+    @Test
+    public void reverse_typicalInput_returnsReversedString() {
+        Assert.assertEquals(""tset"", TextUtil.reverse(""test""));
+        Assert.assertEquals("""", TextUtil.reverse(""""));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\TextUtil_reverse_Str_Test_Normal_36.java,yes
+demo-project,com.demo.TextUtil.reverse(String),String reverse(String),"public static String reverse(String s) {
+        if (s == null) {
+            return null;
+        }
+        return new StringBuilder(s).reverse().toString();
+    }",if (s == null),"class context:
+  TextUtil();","com.demo.TextUtil
+com.demo.TextUtil.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,static public,[Boundary] Test with boundary input for parameter 0 (s: String): set it to null. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TextUtil_reverse_Str_Test_Boundary_37 {
+
+
+    @Test
+    public void reverse_nullInput_returnsNull() {
+        Assert.assertNull(TextUtil.reverse(null));
+    }
+
+}
+","package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class TextUtil_reverse_Str_Test_Boundary_37 {
+
+
+    @Test
+    public void reverse_nullInput_returnsNull() {
+        Assert.assertNull(TextUtil.reverse(null));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\TextUtil_reverse_Str_Test_Boundary_37.java,yes
+demo-project,"com.demo.TextUtil.countOccurrences(String,char)","int countOccurrences(String, char)","public static int countOccurrences(String s, char c) {
+        if (s == null) {
+            return 0;
+        }
+        int count = 0;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) == c) {
+                count++;
+            }
+        }
+        return count;
+    }",if (s == null); if (s.charAt(i); for (int i = 0; i < s.length();,"class context:
+  TextUtil();","com.demo.TextUtil
+com.demo.TextUtil.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,static public,"[Normal] Write a JUnit 4 test with representative valid inputs. Use typical values: ""test"" or """"; 'a'. Assert the expected return value or side effect.","package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Test;
+
+public class TextUtil_countOccurrences_Str_Char_Test_Normal_38 {
+
+    @Test
+    public void countOccurrences_withTypicalInputs_returnsExpectedCount() {
+        org.junit.Assert.assertEquals(0, TextUtil.countOccurrences("""", 'a'));
+        org.junit.Assert.assertEquals(2, TextUtil.countOccurrences(""test"", 't'));
+        org.junit.Assert.assertEquals(0, TextUtil.countOccurrences(""test"", 'a'));
+    }
+
+}
+","package com.demo;
+
+import com.demo.TextUtil;
+import org.junit.Test;
+
+public class TextUtil_countOccurrences_Str_Char_Test_Normal_38 {
+
+    @Test
+    public void countOccurrences_withTypicalInputs_returnsExpectedCount() {
+        org.junit.Assert.assertEquals(0, TextUtil.countOccurrences("""", 'a'));
+        org.junit.Assert.assertEquals(2, TextUtil.countOccurrences(""test"", 't'));
+        org.junit.Assert.assertEquals(0, TextUtil.countOccurrences(""test"", 'a'));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\TextUtil_countOccurrences_Str_Char_Test_Normal_38.java,yes
+demo-project,"com.demo.TextUtil.countOccurrences(String,char)","int countOccurrences(String, char)","public static int countOccurrences(String s, char c) {
+        if (s == null) {
+            return 0;
+        }
+        int count = 0;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) == c) {
+                count++;
+            }
+        }
+        return count;
+    }",if (s == null); if (s.charAt(i); for (int i = 0; i < s.length();,"class context:
+  TextUtil();","com.demo.TextUtil
+com.demo.TextUtil.*
+java.io.ByteArrayInputStream
+java.io.ByteArrayOutputStream
+java.io.IOException
+java.io.ObjectInputStream
+java.io.ObjectOutputStream
+java.lang.reflect.*
+java.lang.reflect.InvocationTargetException
+java.lang.reflect.Method
+org.junit.After
+org.junit.Assert
+org.junit.Assert.*
+org.junit.Before
+org.junit.Ignore
+org.junit.Test",none,static public,[Boundary] Test with boundary input for parameter 0 (s: String): set it to null. Use reasonable defaults for other parameters. Assert the expected behavior.,"package com.demo;
+
+import com.demo.TextUtil;
+import static org.junit.Assert.assertEquals;
+import org.junit.Test;
+
+public class TextUtil_countOccurrences_Str_Char_Test_Boundary_39 {
+
+
+    @Test
+    public void testCountOccurrencesWithNullString() {
+        assertEquals(0, TextUtil.countOccurrences(null, 'a'));
+    }
+
+}
+","package com.demo;
+
+import com.demo.TextUtil;
+import static org.junit.Assert.assertEquals;
+import org.junit.Test;
+
+public class TextUtil_countOccurrences_Str_Char_Test_Boundary_39 {
+
+
+    @Test
+    public void testCountOccurrencesWithNullString() {
+        assertEquals(0, TextUtil.countOccurrences(null, 'a'));
+    }
+
+}
+",D:\ANU\comp4130\a3\comp4130-8131-Assignment3\agent\examples\demo-project\src\test\java\com\demo\TextUtil_countOccurrences_Str_Char_Test_Boundary_39.java,yes

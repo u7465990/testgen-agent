@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -192,14 +193,25 @@ class JavaProjectAnalyzer:
             cp_file.parent.mkdir(parents=True, exist_ok=True)
 
         if not cp_file.is_file():
+            mvn = self._find_mvn()
+            if not mvn:
+                return []
+            cmd = [
+                mvn, "dependency:build-classpath",
+                f"-Dmdep.outputFile={cp_file}",
+                "-Dmdep.includeScope=test",  # include test-scope deps (JUnit)
+                "-q",
+            ]
+            # On Windows `mvn` is mvn.cmd and must run through cmd.exe
+            if sys.platform == "win32" and mvn.lower().endswith((".cmd", ".bat")):
+                cmd = ["cmd", "/c"] + cmd
             try:
                 subprocess.run(
-                    ["mvn", "dependency:build-classpath",
-                     f"-Dmdep.outputFile={cp_file}", "-q"],
+                    cmd,
                     cwd=str(self.project_path),
                     capture_output=True,
                     text=True,
-                    timeout=120,
+                    timeout=180,
                 )
             except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
                 return []
@@ -209,6 +221,15 @@ class JavaProjectAnalyzer:
             if content:
                 return content.split(os.pathsep)
         return []
+
+    @staticmethod
+    def _find_mvn() -> Optional[str]:
+        """Locate the mvn executable (mvn.cmd / mvn.bat on Windows)."""
+        for name in ("mvn", "mvn.cmd", "mvn.bat"):
+            found = shutil.which(name)
+            if found:
+                return found
+        return None
 
     def _resolve_gradle_classpath(self) -> List[str]:
         """Attempt to get Gradle classpath. Returns empty on failure."""

@@ -13,10 +13,15 @@ class TargetGenerator:
     for each method. Each target is a descriptive string passed to the LLM.
     """
 
-    def __init__(self, target_types: Optional[List[str]] = None):
+    def __init__(
+        self,
+        target_types: Optional[List[str]] = None,
+        max_tests_per_method: int = 10,
+    ):
         self.target_types = target_types or [
             "normal", "boundary", "exception", "path", "reflection"
         ]
+        self.max_tests_per_method = max_tests_per_method
 
     def generate_targets(self, method: MethodInfo) -> List[str]:
         """Return a list of target description strings for this method."""
@@ -36,7 +41,7 @@ class TargetGenerator:
                 targets.append(self._reflection_target(method))
 
         # Cap the total
-        return targets[:10]  # configurable via max_tests_per_method
+        return targets[: self.max_tests_per_method]
 
     # ── Normal targets ────────────────────────────────────────
 
