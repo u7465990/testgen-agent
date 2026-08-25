@@ -97,7 +97,7 @@ class JavaCompiler:
             if result.returncode == 0:
                 return True, ""
             # Extract the actual javac errors (skip lines that are just notes)
-            stderr = result.stderr.strip()
+            stderr = (result.stderr or "").strip()
             return False, stderr
         except subprocess.TimeoutExpired:
             return False, "javac timed out (60s)"

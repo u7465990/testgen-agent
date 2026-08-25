@@ -53,6 +53,9 @@ class AgentConfig:
     branch_coverage_target: float = 0.98
     run_coverage_improvement: bool = True
 
+    # ── Resume / checkpoint ───────────────────────────────────
+    resume: bool = True  # skip already-generated tests on re-run (JSONL checkpoint)
+
     # ── Output ────────────────────────────────────────────────
     output_dir: Optional[str] = None  # default → project's src/test/java
     report_format: str = "json"  # "json" | "csv" | "both"

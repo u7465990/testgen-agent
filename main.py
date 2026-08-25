@@ -35,6 +35,7 @@ def build_config(args: argparse.Namespace) -> AgentConfig:
         max_tests_per_method=args.max_per_method,
         max_compile_attempts=args.max_repair,
         run_coverage_improvement=not args.no_coverage,
+        resume=not args.no_resume,
         output_dir=args.output_dir,
         report_format=args.report_format,
         verbose=args.verbose,
@@ -208,6 +209,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--no-coverage", action="store_true",
         help="Skip coverage-guided improvement phase",
+    )
+    parser.add_argument(
+        "--no-resume", action="store_true",
+        help="Ignore the checkpoint and regenerate every test from scratch",
     )
 
     # Output

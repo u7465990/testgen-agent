@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from checkpoint import load_checkpoint, append_checkpoint, make_record
 from config import AgentConfig
 from java_analyzer import JavaProjectAnalyzer, SourceFile
 from method_extractor import MethodExtractor, MethodInfo
@@ -71,6 +72,20 @@ class TestGeneratorAgent:
         report.project_path = str(self.project_path)
         report.build_tool = self.analyzer.detect_build_tool()
 
+        # Checkpoint for resume: records tests already completed so an
+        # interrupted run does not have to re-call the LLM for them.
+        report_dir = self.project_path / "target/testgen-agent"
+        checkpoint_path = report_dir / "checkpoint.jsonl"
+        if self.config.resume:
+            done = load_checkpoint(checkpoint_path)
+            if done:
+                print(f"  [Resume] {len(done)} tests already in checkpoint "
+                      f"— will skip them")
+        else:
+            done = {}
+            if checkpoint_path.is_file():  # fresh start: clear stale state
+                checkpoint_path.unlink()
+
         # ── Phase 1: Extraction ───────────────────────────────
         print("\n=== Phase 1: Project Analysis ===")
         sources = self.analyzer.find_source_files()
@@ -84,78 +99,75 @@ class TestGeneratorAgent:
 
         print(f"  Found {len(sources)} source files")
 
-        all_methods: List[MethodInfo] = []
+        # ── Phases 2-4: streaming filter → target → generate ─
+        # One source file is processed at a time. The global counter stays
+        # monotonic (it advances even for skipped targets) so class names
+        # match a full run exactly — this is what makes resume safe.
+        print("\n=== Phases 2-4: Filtering, Targets & Generation (streaming) ===")
+        test_files: List[TestFile] = []
+        methods_found = 0
+        methods_targeted = 0
+        counter = 0
+        skipped = 0
         for src in sources:
             methods = self.extractor.extract_methods(src)
-            all_methods.extend(methods)
-        report.methods_found = len(all_methods)
-        print(f"  Extracted {len(all_methods)} methods")
+            methods_found += len(methods)
+            targeted = self._filter_methods(methods)
+            methods_targeted += len(targeted)
 
-        # ── Phase 2: Filtering ────────────────────────────────
-        print("\n=== Phase 2: Method Filtering ===")
-        targeted = self._filter_methods(all_methods)
-        report.methods_targeted = len(targeted)
-        print(f"  Targeting {len(targeted)} methods "
-              f"(filtered from {len(all_methods)})")
+            for method in targeted:
+                for target in self.target_gen.generate_targets(method):
+                    class_name = self.writer.generate_class_name(
+                        method, target, counter
+                    )
+                    counter += 1
+                    if self.config.resume and class_name in done:
+                        skipped += 1
+                        print(f"  [#{counter}] {method.fqn} — "
+                              f"{target[:40]}... [skip: already in checkpoint]")
+                        continue
 
-        if not targeted:
+                    print(f"  [#{counter}] {method.fqn} — {target[:50]}...")
+                    try:
+                        sys_prompt, user_prompt = \
+                            self.prompt_mgr.render_generate_prompt(method, target)
+                        raw_code = self.llm.generate(sys_prompt, user_prompt)
+                    except Exception as e:
+                        report.errors.append(
+                            f"LLM call failed for {method.fqn}: {e}"
+                        )
+                        print(f"    ERROR: {e}")
+                        continue
+
+                    package_name = self.writer.get_package(method)
+                    formatted = self.writer.format_code(
+                        raw_code, class_name, package_name
+                    )
+                    file_path = self.writer.write_test_file(
+                        formatted, package_name, class_name
+                    )
+                    test_files.append(TestFile(
+                        path=file_path,
+                        method=method,
+                        target=target,
+                        source_code=formatted,
+                        class_name=class_name,
+                        package_name=package_name,
+                    ))
+                    print(f"    -> Saved: {file_path.name}")
+
+        report.methods_found = methods_found
+        report.methods_targeted = methods_targeted
+        report.tests_generated = counter
+        print(f"  {methods_found} methods extracted, {methods_targeted} "
+              f"targeted, {counter} test targets ({skipped} skipped)")
+
+        if methods_targeted == 0:
             report.errors.append("No methods matched the filter criteria")
             report.duration_seconds = time.time() - start
             return report
 
-        # ── Phase 3: Target Generation ────────────────────────
-        print("\n=== Phase 3: Target Generation ===")
-        method_targets: List[tuple[MethodInfo, str]] = []
-        for method in targeted:
-            targets = self.target_gen.generate_targets(method)
-            for t in targets:
-                method_targets.append((method, t))
-        print(f"  Generated {len(method_targets)} test targets")
-
-        # ── Phase 4: LLM Test Generation ─────────────────────
-        print("\n=== Phase 4: Test Generation ===")
-        test_files: List[TestFile] = []
-        for i, (method, target) in enumerate(method_targets):
-            print(
-                f"  [{i+1}/{len(method_targets)}] "
-                f"{method.fqn} — {target[:50]}..."
-            )
-            try:
-                sys_prompt, user_prompt = \
-                    self.prompt_mgr.render_generate_prompt(method, target)
-                raw_code = self.llm.generate(sys_prompt, user_prompt)
-            except Exception as e:
-                report.errors.append(
-                    f"LLM call failed for {method.fqn}: {e}"
-                )
-                print(f"    ERROR: {e}")
-                continue
-
-            class_name = self.writer.generate_class_name(
-                method, target, i
-            )
-            package_name = self.writer.get_package(method)
-            formatted = self.writer.format_code(
-                raw_code, class_name, package_name
-            )
-            file_path = self.writer.write_test_file(
-                formatted, package_name, class_name
-            )
-            test_file = TestFile(
-                path=file_path,
-                method=method,
-                target=target,
-                source_code=formatted,
-                class_name=class_name,
-                package_name=package_name,
-            )
-            test_files.append(test_file)
-            print(f"    -> Saved: {file_path.name}")
-
-        report.tests_generated = len(test_files)
-        print(f"  Generated {len(test_files)} test files")
-
-        if not test_files:
+        if not test_files and not done:
             report.duration_seconds = time.time() - start
             return report
 
@@ -169,8 +181,15 @@ class TestGeneratorAgent:
             compiled.append(result)
             if result.compiles:
                 report.tests_compiled += 1
+                if self.config.resume:
+                    record = make_record(
+                        result.method, result.class_name, result.path,
+                        result.target
+                    )
+                    append_checkpoint(checkpoint_path, record)
 
-        print(f"  Compiled: {report.tests_compiled}/{len(test_files)}")
+        print(f"  Compiled: {report.tests_compiled}/{len(test_files)} "
+              f"(new this run)")
 
         # ── Phase 6: Coverage Improvement (MVP) ──────────────
         print("\n=== Phase 6: Coverage Improvement ===")
@@ -178,11 +197,19 @@ class TestGeneratorAgent:
         compiled.extend(additional)
         report.tests_generated += len(additional)
 
+        # ── Rebuild resumed tests so the report stays complete ─
+        resumed = self._resumed_test_files(done)
+        report.tests_compiled += len(resumed)
+        if resumed:
+            print(f"  Resumed from checkpoint: {len(resumed)} tests")
+
+        all_tests = compiled + resumed
+
         # ── Phase 7: Final verification ─────────────────────
         print("\n=== Phase 7: Final Verification ===")
         report.tests_runnable = 0
         classpath = self.compiler.resolve_classpath()
-        for tf in compiled:
+        for tf in all_tests:
             success, _ = self.compiler.compile(tf.path, classpath)
             tf.runnable = success
             if success:
@@ -195,7 +222,7 @@ class TestGeneratorAgent:
 
         # ── Build per-method reports ─────────────────────────
         method_map: Dict[str, MethodReport] = {}
-        for tf in compiled:
+        for tf in all_tests:
             key = tf.method.fqn
             if key not in method_map:
                 method_map[key] = MethodReport(
@@ -213,7 +240,7 @@ class TestGeneratorAgent:
         report.method_reports = list(method_map.values())
 
         # ── Build test file list for CSV ─────────────────────
-        for tf in compiled:
+        for tf in all_tests:
             report.test_files.append(
                 ReportGenerator.per_method_row(
                     tf.method, tf.target, tf.source_code,
@@ -227,7 +254,6 @@ class TestGeneratorAgent:
         ReportGenerator.print_console(report)
 
         # Write report files
-        report_dir = self.project_path / "target/testgen-agent"
         report_dir.mkdir(parents=True, exist_ok=True)
 
         if self.config.report_format in ("json", "both"):
@@ -246,6 +272,33 @@ class TestGeneratorAgent:
         print("  Done.")
 
         return report
+
+    def _resumed_test_files(self, done: Dict[str, dict]) -> List[TestFile]:
+        """Rebuild TestFile objects from checkpoint records for the report.
+
+        Only records whose test file still exists on disk are kept. These
+        were compiled successfully before (that is why they are recorded),
+        so they are treated as already-compiled.
+        """
+        resumed: List[TestFile] = []
+        for record in done.values():
+            try:
+                method = MethodInfo(**record["method"])
+                path = Path(record["file_path"])
+                source_code = path.read_text(encoding="utf-8")
+            except Exception:
+                continue  # file missing or malformed record — skip it
+            tf = TestFile(
+                path=path,
+                method=method,
+                target=record.get("target", ""),
+                source_code=source_code,
+                class_name=record["class_name"],
+                package_name=method.package_name,
+            )
+            tf.compiles = True
+            resumed.append(tf)
+        return resumed
 
     # ── Method filtering ──────────────────────────────────────
 
