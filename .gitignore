@@ -26,7 +26,8 @@ api-key.txt
 *.log
 
 # Test outputs
-**/target/testgen-agent/
+**/.testgen-agent/
 **/target/surefire-reports/
 **/target/site/jacoco/
+**/target/pit-reports/
 **/classpath.txt

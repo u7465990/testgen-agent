@@ -61,8 +61,13 @@ def skill_entry(
         "compilation_rate": report.compilation_rate,
         "duration_seconds": report.duration_seconds,
         "report_path": (
-            str(Path(project_path) / "target/testgen-agent/report.json")
+            str(Path(project_path) / ".testgen-agent/report.json")
         ),
+        "report_markdown": (
+            str(Path(project_path) / ".testgen-agent/report.md")
+        ),
+        "mutation_score": report.mutation_score,
+        "empty_test_classes": report.empty_test_classes,
     }
 
 

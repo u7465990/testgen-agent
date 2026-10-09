@@ -53,6 +53,13 @@ class AgentConfig:
     branch_coverage_target: float = 0.98
     run_coverage_improvement: bool = True
 
+    # ── Quality analysis ──────────────────────────────────────
+    # Compilation success only proves the file parses; these control the
+    # measurement of whether the tests are actually meaningful.
+    run_mutation_analysis: bool = True   # PiTest mutation score (Maven only)
+    pitest_version: str = "1.15.0"
+    mutation_timeout_seconds: int = 1800
+
     # ── Resume / checkpoint ───────────────────────────────────
     resume: bool = True  # skip already-generated tests on re-run (JSONL checkpoint)
 

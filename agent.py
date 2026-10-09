@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -16,6 +17,7 @@ from llm_client import LLMClient
 from test_writer import TestWriter
 from compiler import JavaCompiler
 from repair_loop import RepairLoop, TestFile
+from quality_analyzer import TestQualityAnalyzer, MutationAnalyzer
 from report_generator import AgentReport, MethodReport, ReportGenerator
 
 
@@ -74,9 +76,14 @@ class TestGeneratorAgent:
 
         # Checkpoint for resume: records tests already completed so an
         # interrupted run does not have to re-call the LLM for them.
-        report_dir = self.project_path / "target/testgen-agent"
-        checkpoint_path = report_dir / "checkpoint.jsonl"
+        # All agent output lives in .testgen-agent/ at the project root —
+        # OUTSIDE target/, which `mvn clean` (run by the coverage phase)
+        # deletes. Keeping it in target/ would silently destroy resume state.
+        state_dir = self.project_path / ".testgen-agent"
+        checkpoint_path = state_dir / "checkpoint.jsonl"
+
         if self.config.resume:
+            self._migrate_legacy_checkpoint(checkpoint_path)
             done = load_checkpoint(checkpoint_path)
             if done:
                 print(f"  [Resume] {len(done)} tests already in checkpoint "
@@ -98,6 +105,19 @@ class TestGeneratorAgent:
             return report
 
         print(f"  Found {len(sources)} source files")
+
+        # Build the project before generating anything. Generated tests
+        # import the project's own types, and javac can only see them via
+        # the compiled output on the classpath. Doing this up front also
+        # surfaces an unbuildable project before any LLM spend.
+        built, build_message = self.compiler.ensure_project_built()
+        if built:
+            print(f"  [Build] {build_message}")
+        else:
+            print(f"  [Build] WARNING: {build_message}")
+            print("  [Build] Generated tests will likely fail to compile — "
+                  "build the project and re-run.")
+            report.errors.append(f"Project build failed: {build_message}")
 
         # ── Phases 2-4: streaming filter → target → generate ─
         # One source file is processed at a time. The global counter stays
@@ -248,25 +268,61 @@ class TestGeneratorAgent:
                 )
             )
 
+        # ── Phase 8: Test quality analysis ──────────────────
+        # Compilation only proves the files parse. This measures whether the
+        # tests are meaningful: empty classes, assertion density, and (via
+        # PiTest) how many injected faults the tests actually catch.
+        print("\n=== Phase 8: Test Quality Analysis ===")
+        quality = TestQualityAnalyzer.analyze(
+            [(tf.class_name, tf.source_code) for tf in all_tests]
+        )
+        report.total_test_methods = quality.total_test_methods
+        report.empty_test_classes = len(quality.empty_test_classes)
+        report.empty_test_class_names = quality.empty_test_classes
+        report.assertion_density = quality.assertion_density
+
+        print(f"  {quality.total_test_methods} @Test methods across "
+              f"{quality.total_files} files")
+        print(f"  Assertion density:  {quality.assertion_density:.2f} per test")
+        if quality.empty_test_classes:
+            print(f"  Empty test classes: {len(quality.empty_test_classes)} "
+                  f"(compile, but contain no @Test)")
+            for name in quality.empty_test_classes:
+                print(f"    - {name}")
+        else:
+            print("  Empty test classes: none")
+
+        if self.config.run_mutation_analysis:
+            self._run_mutation_analysis(report, all_tests)
+        else:
+            print("  Mutation analysis: skipped (--no-mutation)")
+
         report.duration_seconds = time.time() - start
 
         # ── Output ──────────────────────────────────────────
         ReportGenerator.print_console(report)
 
-        # Write report files
-        report_dir.mkdir(parents=True, exist_ok=True)
+        # Write report files into the same state dir (survives mvn clean)
+        state_dir.mkdir(parents=True, exist_ok=True)
 
-        if self.config.report_format in ("json", "both"):
+        if self.config.report_format in ("md", "all"):
+            ReportGenerator.generate_markdown(
+                report, state_dir / "report.md",
+                reproduce_command=self._reproduce_command(),
+            )
+            print(f"\n  Markdown:    {state_dir / 'report.md'}")
+
+        if self.config.report_format in ("json", "both", "all"):
             ReportGenerator.generate_json(
-                report, report_dir / "report.json"
+                report, state_dir / "report.json"
             )
-            print(f"\n  JSON report: {report_dir / 'report.json'}")
+            print(f"  JSON report: {state_dir / 'report.json'}")
 
-        if self.config.report_format in ("csv", "both"):
+        if self.config.report_format in ("csv", "both", "all"):
             ReportGenerator.generate_csv(
-                report, report_dir / "report.csv", report.test_files
+                report, state_dir / "report.csv", report.test_files
             )
-            print(f"  CSV report:  {report_dir / 'report.csv'}")
+            print(f"  CSV report:  {state_dir / 'report.csv'}")
 
         print(f"\n  Test files are in: {self.test_dir}")
         print("  Done.")
@@ -299,6 +355,132 @@ class TestGeneratorAgent:
             tf.compiles = True
             resumed.append(tf)
         return resumed
+
+    # ── State helpers ─────────────────────────────────────────
+
+    def _migrate_legacy_checkpoint(self, checkpoint_path: Path) -> None:
+        """Move a checkpoint written by an older version out of target/.
+
+        Earlier versions stored it at target/testgen-agent/checkpoint.jsonl,
+        where the coverage phase's `mvn clean` would delete it mid-run. Copy
+        it forward so an in-flight run is not silently restarted.
+        """
+        legacy = self.project_path / "target/testgen-agent/checkpoint.jsonl"
+        if checkpoint_path.is_file() or not legacy.is_file():
+            return
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(legacy, checkpoint_path)
+        print("  [Resume] Migrated checkpoint out of target/ "
+              "(mvn clean would delete it)")
+
+    # ── Report helpers ────────────────────────────────────────
+
+    def _reproduce_command(self) -> str:
+        """Best-effort CLI line that reproduces this run (for the report)."""
+        parts = [
+            "python main.py generate <project-path>",
+            f"--provider {self.config.llm_provider}",
+            f"--model {self.config.llm_model}",
+            f"--max-per-method {self.config.max_tests_per_method}",
+        ]
+        for pkg in self.config.target_packages:
+            parts.append(f"--package {pkg}")
+        if not self.config.include_private:
+            parts.append("--skip-private")
+        if not self.config.run_coverage_improvement:
+            parts.append("--no-coverage")
+        if not self.config.run_mutation_analysis:
+            parts.append("--no-mutation")
+        return " ".join(parts)
+
+    # ── Mutation analysis ─────────────────────────────────────
+
+    def _run_mutation_analysis(
+        self, report: AgentReport, all_tests: List[TestFile]
+    ) -> None:
+        """Run PiTest and fill the mutation fields of the report.
+
+        Degrades gracefully: mutation testing needs Maven plus a resolvable
+        pitest-maven plugin, and is skipped with a warning if either is
+        missing — the rest of the report is still produced.
+        """
+        packages = sorted({
+            tf.method.package_name
+            for tf in all_tests
+            if tf.method.package_name
+        })
+        if not packages:
+            print("  [Mutation] No package information available, skipping.")
+            return
+
+        # PiTest takes a comma-separated glob of the classes to mutate.
+        target_glob = ",".join(f"{p}.*" for p in packages)
+        print(f"  [Mutation] Target classes: {target_glob}")
+
+        # PiTest refuses to run unless the suite is green. Generated tests can
+        # legitimately fail at runtime (e.g. a misunderstood class invariant),
+        # so on that specific failure, exclude the offenders and retry — the
+        # remaining green tests still yield a meaningful mutation score.
+        excluded: List[str] = []
+        ran, output = MutationAnalyzer.run(
+            self.project_path,
+            target_glob,
+            version=self.config.pitest_version,
+            timeout=self.config.mutation_timeout_seconds,
+        )
+        if not ran:
+            failing = MutationAnalyzer.parse_failing_tests(output)
+            if not failing:
+                report.errors.append(
+                    "Mutation analysis did not run (Maven or pitest-maven "
+                    "unavailable) — see warnings above"
+                )
+                return
+            print(f"  [Mutation] {len(failing)} test class(es) fail before "
+                  f"mutation — retrying with them excluded:")
+            for name in failing:
+                print(f"    - {name}")
+            excluded = failing
+            ran, output = MutationAnalyzer.run(
+                self.project_path,
+                target_glob,
+                version=self.config.pitest_version,
+                timeout=self.config.mutation_timeout_seconds,
+                exclude_tests=excluded,
+            )
+            if not ran:
+                report.errors.append(
+                    f"Mutation analysis did not run: {len(failing)} test "
+                    f"class(es) fail without mutation (PiTest needs a green "
+                    f"suite)"
+                )
+                return
+
+        report.mutations_excluded_tests = excluded
+
+        xml = MutationAnalyzer.find_pitest_xml(self.project_path)
+        if not xml:
+            print("  [Mutation] No PiTest report generated, skipping.")
+            report.errors.append("PiTest produced no mutations.xml")
+            return
+
+        result = MutationAnalyzer.parse_pitest_xml(xml)
+        report.mutations_killed = result.killed
+        report.mutations_total = result.total
+        report.mutations_no_coverage = result.no_coverage
+        report.mutation_score = result.score
+        report.mutation_by_class = [
+            {
+                "name": c.name,
+                "killed": c.killed,
+                "total": c.total,
+                "score": c.score,
+            }
+            for c in result.by_class
+        ]
+
+        print(f"  Mutation score: {result.score:.1%} "
+              f"({result.killed}/{result.total} mutants killed)")
 
     # ── Method filtering ──────────────────────────────────────
 

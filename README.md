@@ -8,7 +8,9 @@ testgen-agent analyze  ./my-project
 testgen-agent generate ./my-project
 ```
 
-TestGen Agent is a standalone Python tool that takes a Java project, discovers its methods, generates JUnit 4 unit tests using an LLM (OpenAI, Anthropic, or any Anthropic-compatible endpoint such as DeepSeek), compiles and repairs them, and outputs a structured report. It replaces a fragmented manual pipeline with a single autonomous agent.
+TestGen Agent is a standalone Python tool that takes a Java project, discovers its methods, generates JUnit 4 unit tests using an LLM (OpenAI, Anthropic, or any Anthropic-compatible endpoint such as DeepSeek), compiles and repairs them, and measures how good the result actually is. It replaces a fragmented manual pipeline with a single autonomous agent.
+
+> **Measuring the right thing.** Compilation success only proves a test file parses — an empty test class compiles perfectly. TestGen Agent therefore reports **mutation score** (PiTest) as its headline metric: the fraction of injected faults the generated tests actually catch.
 
 > **Verification status:** the full pipeline has been **run end-to-end and verified** on the bundled `examples/demo-project` (see [Verified End-to-End Run](#verified-end-to-end-run)). Maven, Ant, Gradle, and manual project layouts are auto-detected by design; only the **Maven** path has been exercised in the demo verification so far.
 
@@ -20,7 +22,10 @@ TestGen Agent is a standalone Python tool that takes a Java project, discovers i
 - **Multi-provider LLM support** — works with OpenAI (GPT-4o-mini), Anthropic (Claude), or any Anthropic-compatible endpoint via `ANTHROPIC_BASE_URL` (e.g. DeepSeek)
 - **Self-healing compilation** — if generated tests fail to compile, the agent sends error diagnostics back to the LLM for automatic repair (up to 3 attempts)
 - **Coverage-guided improvement** *(optional)* — runs tests with JaCoCo, identifies uncovered branches, and generates additional targeted tests
-- **Structured output** — JSON summary, CSV data, and console report
+- **Test-quality measurement** — mutation score (PiTest), assertion density, and empty-test-class detection
+- **Resumable** — an interrupted run resumes from a JSONL checkpoint instead of re-calling the LLM
+- **Human-readable report** — a Markdown report is written on every run
+- **Structured output** — Markdown, JSON, CSV, and console report
 - **Claude Code skill** — install as `/generate-tests` in Claude Code
 
 ## Verified End-to-End Run
@@ -33,14 +38,27 @@ The pipeline was executed against `examples/demo-project`, a small Maven Java 8 
 | Methods extracted | 22 |
 | Methods targeted | 20 |
 | Test files generated | 40 |
-| **Compile pass rate** | **40 / 40 (100%)** |
+| Compile pass rate | 40 / 40 (100%) |
 | Tests executed via Maven surefire | 38 |
-| **Pass rate (runtime)** | **36 / 38 (94.7%)** |
+| Pass rate (runtime) | 36 / 38 (94.7%) |
+| **Mutation score (PiTest)** | **67 / 80 (83.8%)** |
+| Assertion density | 2.79 per `@Test` method |
+| Empty test classes | 2 |
 
-**Honest caveats observed during the run:**
+The mutation score is the number that matters: it means these generated tests kill **83.8% of injected faults** — on par with the human-written baseline of 83.98% reported in the ICST 2026 replication study. Per class:
 
-- **2 of 40 generated files were empty test classes** (compiled but contained no `@Test` method) — the compilation check alone does not catch this.
-- **2 of 38 executed tests failed** because the LLM misunderstood a class invariant (`BankAccount` forbids negative balances in its constructor, so an overdrawn state is unreachable through the public API — the generated `isOverdrawn` tests tried to construct one anyway).
+| Class | Mutation score |
+|-------|----------------|
+| `com.demo.TextUtil` | 100.0% (20/20) |
+| `com.demo.PasswordValidator` | 79.2% (19/24) |
+| `com.demo.Calculator` | 78.9% (15/19) |
+| `com.demo.BankAccount` | 76.5% (13/17) |
+
+**Honest caveats observed during the run** — most of these are now *measured* rather than merely acknowledged:
+
+- **2 of 40 generated files were empty test classes** (compiled but contained no `@Test` method). The compilation check does not catch this; the `empty_test_classes` metric does, and the agent now reports it.
+- **2 of 38 executed tests failed** because the LLM misunderstood a class invariant (`BankAccount` forbids negative balances in its constructor, so an overdrawn state is unreachable through the public API — the generated `isOverdrawn` tests tried to construct one anyway). PiTest requires a green suite, so these two are automatically excluded from mutation analysis and listed in the report.
+- **5 of 80 mutants were never reached by any test** (`NO_COVERAGE`) — a coverage gap, not an assertion gap, and the report breaks it out separately.
 - The demo run used `--no-coverage`, so the coverage-guided phase (Phase B) was **not** exercised in this run; it is implemented and was exercised in the underlying Defects4J experiments.
 
 Run artifacts (report.json / report.csv / surefire results / generated tests) are in the repo for inspection. See the [demo README](examples/demo-project/README.md) for reproduction steps.
@@ -85,7 +103,9 @@ Run the full pipeline: discover → extract → generate → repair → report:
 testgen-agent generate ./my-java-project
 ```
 
-Tests are saved to `./my-java-project/src/test/java/`. A report is written to `./my-java-project/target/testgen-agent/report.json`.
+Tests are saved to `./my-java-project/src/test/java/`. Reports are written to `./my-java-project/.testgen-agent/` (`report.md`, `report.json`, `report.csv`).
+
+> The report directory sits **outside `target/`** on purpose: the coverage phase runs `mvn clean`, which would otherwise delete the reports — and the resume checkpoint with them.
 
 ## Usage
 
@@ -116,10 +136,16 @@ Method filtering:
 Repair:
   --max-repair N                  Max compilation repair attempts (default: 3)
   --no-coverage                   Skip coverage-guided improvement
+  --no-resume                     Ignore the checkpoint and regenerate everything
+
+Quality:
+  --no-mutation                   Skip PiTest mutation-score analysis (slow; needs Maven)
+  --pitest-version VERSION        pitest-maven plugin version (default: 1.15.0)
 
 Output:
   --output-dir DIR                Test output directory (default: src/test/java)
-  --report-format {json,csv,both} Report format (default: both)
+  --report-format {json,csv,both,md,all}
+                                  Report format (default: all = md + json + csv)
 ```
 
 ### Examples
@@ -197,8 +223,18 @@ Project Directory
   │  Generate [MissingBranch] targets
   │  → Repeat until all methods meet threshold
   ▼
-[7] Report
-    JSON + CSV + console summary
+[7] Final Verification
+  │  Recompile every surviving test against the classpath
+  │  Build per-method report
+  ▼
+[8] Test Quality
+  │  Empty test classes (compiles but has no @Test)
+  │  Assertion density (assertions per @Test method)
+  │  Mutation score via PiTest — retries with failing
+  │  test classes excluded, since PiTest needs a green suite
+  ▼
+Report
+    Markdown + JSON + CSV + console summary
 ```
 
 *\*Phase B requires Maven and JaCoCo to be configured in the target project*
@@ -228,7 +264,9 @@ agent/
 ├── compiler.py              javac invocation + classpath resolution
 ├── repair_loop.py           LLM-based compilation repair + coverage loop
 ├── coverage_analyzer.py     JaCoCo XML parsing
-├── report_generator.py      JSON + CSV + console output
+├── quality_analyzer.py      Empty test classes, assertion density, PiTest parsing
+├── checkpoint.py            JSONL resume support
+├── report_generator.py      Markdown + JSON + CSV + console output
 ├── skill_entry.py           Claude Code skill bridge
 ├── prompts/
 │   ├── generate_system.txt
@@ -256,8 +294,21 @@ agent/
   Tests generated:   40
   Tests compiled:    40
   Compilation rate: 100.0%
+  ---------------------------------------------------
+  Test methods:     38
+  Assertion density: 2.79 per test
+  Empty test classes: 2 (compile, but contain no @Test)
+  Mutation score:   83.8% (67/80 mutants killed)
+    (5 mutants were never even reached by a test)
+    (2 test class(es) excluded — they fail before mutation)
   Duration:       491.2s
 ───────────────────────────────────────────────────────
+
+  Weakest classes (mutation score):
+  com.demo.BankAccount                            76.5%  (13/17)
+  com.demo.Calculator                             78.9%  (15/19)
+  com.demo.PasswordValidator                      79.2%  (19/24)
+  com.demo.TextUtil                              100.0%  (20/20)
 
   Per-method breakdown:
   Method                                              Gen  Cmp  Run
@@ -270,7 +321,40 @@ agent/
   ... (20 methods, all compiled & runnable)
 ```
 
-### JSON Report (`target/testgen-agent/report.json`)
+### Markdown Report (`.testgen-agent/report.md`)
+
+The human-facing artifact — written on every run, safe to commit or paste into a review. Mutation score leads:
+
+```markdown
+# TestGen Agent 报告 — demo-project
+
+> 生成于 2026-10-09 13:40 · 耗时 491.2s · 构建工具 `maven`
+
+## 核心指标
+| 指标 | 值 |
+|---|---|
+| **Mutation score** | **83.8%** (67/80 mutants killed) |
+| 编译通过率 | 100.0% (40/40) |
+| 可运行率 | 95.0% (38/40) |
+| 断言密度 | 2.79 / 测试 |
+| 空测试类 | 2 |
+
+**结论：良好 —— 与人工撰写测试的典型水平（约 80–85%）相当。**
+
+## 最弱的类
+| 类 | Mutation score | Killed |
+|---|---|---|
+| `com.demo.BankAccount` | 76.5% | 13/17 |
+| `com.demo.Calculator` | 78.9% | 15/19 |
+
+## 需要人工介入
+**2 个测试运行时失败**（已排除出 mutation 分析，PiTest 要求测试全绿）:
+- `com.demo.BankAccount_isOverdrawn_Test_Normal_8`
+```
+
+The report ends with the exact command that reproduces the run.
+
+### JSON Report (`.testgen-agent/report.json`)
 
 ```json
 {
@@ -285,6 +369,24 @@ agent/
   "compilation_rate": 1.0,
   "branch_coverage": null,
   "line_coverage": null,
+  "total_test_methods": 38,
+  "empty_test_classes": 2,
+  "empty_test_class_names": [
+    "PasswordValidator_hasDigit_Str_Test_Boundary_29",
+    "PasswordValidator_strength_Str_Test_Normal_30"
+  ],
+  "assertion_density": 2.789473684210526,
+  "mutation_score": 0.8375,
+  "mutations_killed": 67,
+  "mutations_total": 80,
+  "mutations_no_coverage": 5,
+  "mutations_excluded_tests": [
+    "com.demo.BankAccount_isOverdrawn_Test_Normal_8",
+    "com.demo.BankAccount_isOverdrawn_Test_Path_9"
+  ],
+  "mutation_by_class": [
+    { "name": "com.demo.TextUtil", "killed": 20, "total": 20, "score": 1.0 }
+  ],
   "method_reports": [
     {
       "fqn": "com.demo.BankAccount.getBalance()",
@@ -298,9 +400,9 @@ agent/
 }
 ```
 
-> `branch_coverage` / `line_coverage` are populated only when the coverage phase (Phase B) runs (without `--no-coverage`).
+> `branch_coverage` / `line_coverage` are populated only when the coverage phase (Phase B) runs (without `--no-coverage`). `mutation_score` is `null` when mutation analysis was skipped or unavailable.
 
-### CSV Report (`target/testgen-agent/report.csv`)
+### CSV Report (`.testgen-agent/report.csv`)
 
 Columns: `Project`, `FQN`, `Signature`, `SourceCode`, `BranchConditions`, `ClassContext`, `AllowedImports`, `ThrowsExceptions`, `Modifiers`, `GenerationTarget`, `GeneratedCode`, `CodeAfterFormatting`, `SavedPath`, `Runnable`
 
@@ -325,7 +427,7 @@ Claude will run the agent, interpret the results, and present a summary.
 - **Java 8+** (for compiling generated tests — the project under test must target Java 8)
 - **Python 3.10+**
 - **Javac** — must be on `PATH` or `JAVA_HOME` set
-- **Maven** *(optional)* — only needed for classpath resolution and coverage
+- **Maven** *(optional)* — needed for classpath resolution, coverage (Phase B), and mutation analysis (Phase 8). Mutation analysis additionally needs **JDK 11+** to run PiTest.
 - **API Key** — OpenAI (`OPENAI_API_KEY`) or Anthropic (`ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL`)
 
 On Windows, `javac` resolution requires `JAVA_HOME` to point to a JDK (not JRE), and the agent invokes `mvn.cmd` through `cmd /c` automatically.
@@ -333,10 +435,13 @@ On Windows, `javac` resolution requires `JAVA_HOME` to point to a JDK (not JRE),
 ## Limitations
 
 - Generated tests are **JUnit 4**, Java 8 compatible — no JUnit 5, no lambdas, no Java 8+ APIs
+- **No mocking.** The prompt forbids Mockito, so classes with injected dependencies (services, repositories) generally cannot produce runnable tests. This is the single biggest gap for real-world projects.
 - Generated test files use the naming convention `ClassName_method_ParamType_Test_Type_N`. Maven projects must configure surefire's `<includes>` (e.g. `**/*_Test_*.java`) for them to be executed — see `examples/demo-project/pom.xml`.
 - Branch conditions are extracted from **source code** rather than Jimple IR (may miss compiler-generated branches)
 - Phase B (coverage improvement) requires **Maven + JaCoCo** configured in the target project
-- Large projects with hundreds of methods may take significant time and API tokens
+- Mutation analysis (Phase 8) requires **Maven** and a **JDK 11+** to run PiTest — it needs `pitest-maven`, resolved on demand and pinned via `--pitest-version`. PiTest also refuses to run unless the test suite is green; failing test classes are automatically excluded and listed in the report.
+- Compiled-but-empty test classes are reported but **not** automatically regenerated
+- Large projects with hundreds of methods may take significant time and API tokens (single-threaded today)
 
 ## Verified Fixes
 
@@ -347,6 +452,9 @@ Bugs found and fixed by actually running the pipeline on `examples/demo-project`
 3. **Anthropic `ThinkingBlock` handling** — DeepSeek returns a thinking block before the text block; the client crashed on `content[0].text`. Fixed by concatenating only `type == "text"` blocks.
 4. **`--max-per-method` ignored** — `target_generator.py` hard-coded `targets[:10]`. Now the configured cap is respected.
 5. **Surefire naming mismatch** — generated test files didn't match surefire's default `*Test.java` include pattern, so `mvn test` ran 0 tests. Documented in the demo `pom.xml`.
+6. **Checkpoint and reports lived inside `target/`** — the coverage phase runs `mvn clean`, which deleted the resume checkpoint and every report mid-run. Moved to `.testgen-agent/` at the project root, with an automatic migration of any legacy checkpoint.
+7. **PiTest requires a green suite** — it aborts with "did not pass without mutation" if any test fails, so a single failing generated test blocked the whole mutation phase. The agent now parses the offending test classes out of PiTest's output, excludes them, and retries — recording the exclusions in the report.
+8. **Compilation-only reporting was self-refuting** — the headline metric was "100% compile rate", but an empty test class compiles too. Mutation score, assertion density, and empty-class detection were added as Phase 8.
 
 ## License
 

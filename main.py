@@ -36,6 +36,8 @@ def build_config(args: argparse.Namespace) -> AgentConfig:
         max_compile_attempts=args.max_repair,
         run_coverage_improvement=not args.no_coverage,
         resume=not args.no_resume,
+        run_mutation_analysis=not args.no_mutation,
+        pitest_version=args.pitest_version,
         output_dir=args.output_dir,
         report_format=args.report_format,
         verbose=args.verbose,
@@ -215,15 +217,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Ignore the checkpoint and regenerate every test from scratch",
     )
 
+    # Quality analysis
+    parser.add_argument(
+        "--no-mutation", action="store_true",
+        help="Skip PiTest mutation-score analysis (slow; needs Maven)",
+    )
+    parser.add_argument(
+        "--pitest-version", default="1.15.0",
+        help="pitest-maven plugin version (default: 1.15.0)",
+    )
+
     # Output
     parser.add_argument(
         "--output-dir",
         help="Test output directory (default: project's src/test/java)",
     )
     parser.add_argument(
-        "--report-format", default="both",
-        choices=["json", "csv", "both"],
-        help="Report output format (default: both)",
+        "--report-format", default="all",
+        choices=["json", "csv", "both", "md", "all"],
+        help="Report output format: md (human-readable), json, csv, "
+             "both (json+csv), all (default: md+json+csv)",
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true",

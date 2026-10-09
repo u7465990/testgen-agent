@@ -28,6 +28,61 @@ class JavaCompiler:
         self._classpath = self._analyzer.resolve_classpath()
         return self._classpath
 
+    def ensure_project_built(self) -> Tuple[bool, str]:
+        """Build the project's main classes if they are not already built.
+
+        Generated tests import the project's own types, so `javac` needs the
+        compiled output on the classpath. `resolve_classpath()` only adds a
+        classes directory that *already exists* — so on a clean checkout, or
+        right after `mvn clean`, every generated test fails with
+        "cannot find symbol" and the run silently reports a terrible compile
+        rate. Building here is what makes the tool work on a project the
+        caller has not pre-built.
+
+        Returns (built, message). Never raises.
+        """
+        classes_dirs = [
+            self.project_path / "target/classes",
+            self.project_path / "build/classes",
+            self.project_path / "build/classes/java/main",
+            self.project_path / "bin",
+        ]
+        if any(d.is_dir() for d in classes_dirs):
+            return True, "already built"
+
+        build_tool = self._analyzer.detect_build_tool()
+        commands = {
+            "maven": "mvn -q compile -B",
+            "gradle": "gradle classes --console=plain -q",
+            "ant": "ant compile",
+        }
+        cmd = commands.get(build_tool)
+        if not cmd:
+            return False, (
+                f"cannot build a '{build_tool}' project automatically — "
+                f"compile it first so its classes are on the classpath"
+            )
+
+        print(f"    [CMD] cd {self.project_path} && {cmd}")
+        try:
+            result = subprocess.run(
+                cmd, cwd=str(self.project_path),
+                capture_output=True, text=True, timeout=300, shell=True,
+            )
+        except subprocess.TimeoutExpired:
+            return False, f"build timed out after 300s: {cmd}"
+        except FileNotFoundError:
+            return False, f"build tool not found: {cmd}"
+
+        # The classpath was resolved (and cached) before the build, so it does
+        # not include the classes directory that now exists — drop the cache.
+        self._classpath = None
+
+        if result.returncode != 0:
+            output = ((result.stderr or "") + (result.stdout or "")).strip()
+            return False, f"'{cmd}' failed: {output[-400:]}"
+        return True, "compiled project classes"
+
     def find_javac(self) -> Optional[Path]:
         """Locate the javac binary."""
         java_home = self.config.get_java_home()
