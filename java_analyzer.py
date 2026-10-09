@@ -9,6 +9,10 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from runlog import get_logger
+
+logger = get_logger(__name__)
+
 
 class SourceFile:
     """A discovered Java source file within the project."""
@@ -184,7 +188,30 @@ class JavaProjectAnalyzer:
                     cp_entries.extend(content.split(os.pathsep))
 
         separator = ";" if sys.platform == "win32" else ":"
-        return separator.join(str(p) for p in cp_entries if p)
+
+        # Dedupe, preserving order. The Maven resolver both returns the
+        # entries and caches them to target/classpath.txt, which the
+        # pre-cached block above then reads — so deps arrive twice.
+        resolved: List[str] = []
+        seen: set = set()
+        for entry in (str(p) for p in cp_entries if p):
+            key = os.path.normcase(os.path.normpath(entry))
+            if key not in seen:
+                seen.add(key)
+                resolved.append(entry)
+
+        # A classpath with no project classes directory is the failure mode
+        # that makes every generated test fail with "cannot find symbol", so
+        # say so explicitly rather than leaving it to be inferred.
+        logger.debug("classpath resolved (build tool=%s, %d entries):",
+                     build_tool, len(resolved))
+        for entry in resolved:
+            logger.debug("  %s", entry)
+        if not any(Path(e).is_dir() and Path(e).name in
+                   ("classes", "main", "bin") for e in resolved):
+            logger.debug("  NOTE: no compiled project classes on the classpath")
+
+        return separator.join(resolved)
 
     def _resolve_maven_classpath(self) -> List[str]:
         """Run `mvn dependency:build-classpath` and return entries."""

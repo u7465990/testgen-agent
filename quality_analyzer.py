@@ -20,6 +20,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
+from runlog import get_logger
+
+logger = get_logger(__name__)
+
 
 # ── Patterns for static source analysis ───────────────────────
 # Matches @Test and @Test(expected = ...). Kept loose on purpose: a false
@@ -185,8 +189,14 @@ class MutationAnalyzer:
             # Surface the tail — usually the actual plugin failure reason.
             for line in output.strip().splitlines()[-6:]:
                 print(f"      {line}")
+            # The console only shows the tail; the full Maven output is what
+            # says whether this was a build failure, a missing plugin, or
+            # failing tests.
+            logger.debug("PiTest maven run FAILED (exit %s), full output:\n%s",
+                         result.returncode, output)
             return False, output
         print("    [OK] Mutation testing completed")
+        logger.debug("PiTest maven run OK")
         return True, output
 
     @staticmethod

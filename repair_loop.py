@@ -17,6 +17,9 @@ from llm_client import LLMClient
 from prompt_manager import PromptManager
 from test_writer import TestWriter
 from method_extractor import MethodInfo
+from runlog import get_logger
+
+logger = get_logger(__name__)
 
 
 class TestFile:
@@ -127,10 +130,15 @@ class RepairLoop:
                 new_code = self.llm.generate(sys_prompt, user_prompt)
             except Exception as e:
                 print(f"      LLM repair call failed: {e}")
+                logger.debug("repair LLM call raised: %r", e)
                 continue
 
             if not new_code or len(new_code) < 50:
+                # The console just says "too short" — record what actually
+                # came back, or a truncated/empty reply is undiagnosable.
                 print("      LLM returned too-short response, skipping.")
+                logger.debug("repair response too short (%d ch): %r",
+                             len(new_code or ""), (new_code or "")[:300])
                 continue
 
             # Extract Java from markdown if needed

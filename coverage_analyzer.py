@@ -8,6 +8,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from runlog import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class MethodCoverage:
@@ -65,14 +69,22 @@ class CoverageAnalyzer:
             )
             if result.returncode != 0:
                 print(f"    [WARN] Maven returned exit code {result.returncode}")
+                logger.debug(
+                    "coverage maven run FAILED (exit %s):\n%s\n%s",
+                    result.returncode,
+                    result.stdout or "", result.stderr or "",
+                )
             else:
                 print("    [OK] Tests executed successfully")
+                logger.debug("coverage maven run OK")
             return True
         except subprocess.TimeoutExpired:
             print("    [FAIL] Maven test execution timed out")
+            logger.debug("coverage maven run TIMEOUT after 300s")
             return False
         except FileNotFoundError:
             print("    [FAIL] Maven (mvn) not found in PATH")
+            logger.debug("coverage maven run: mvn not found in PATH")
             return False
 
     @staticmethod

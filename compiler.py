@@ -10,6 +10,9 @@ from typing import Optional, Tuple
 
 from config import AgentConfig
 from java_analyzer import JavaProjectAnalyzer
+from runlog import get_logger
+
+logger = get_logger(__name__)
 
 
 class JavaCompiler:
@@ -47,7 +50,9 @@ class JavaCompiler:
             self.project_path / "build/classes/java/main",
             self.project_path / "bin",
         ]
-        if any(d.is_dir() for d in classes_dirs):
+        existing = next((d for d in classes_dirs if d.is_dir()), None)
+        if existing:
+            logger.debug("project already built: %s", existing)
             return True, "already built"
 
         build_tool = self._analyzer.detect_build_tool()
@@ -64,14 +69,17 @@ class JavaCompiler:
             )
 
         print(f"    [CMD] cd {self.project_path} && {cmd}")
+        logger.debug("build: cd %s && %s", self.project_path, cmd)
         try:
             result = subprocess.run(
                 cmd, cwd=str(self.project_path),
                 capture_output=True, text=True, timeout=300, shell=True,
             )
         except subprocess.TimeoutExpired:
+            logger.debug("build -> TIMEOUT after 300s")
             return False, f"build timed out after 300s: {cmd}"
         except FileNotFoundError:
+            logger.debug("build -> tool not found")
             return False, f"build tool not found: {cmd}"
 
         # The classpath was resolved (and cached) before the build, so it does
@@ -80,7 +88,10 @@ class JavaCompiler:
 
         if result.returncode != 0:
             output = ((result.stderr or "") + (result.stdout or "")).strip()
+            logger.debug("build -> FAILED (exit %s)\n%s",
+                         result.returncode, output)
             return False, f"'{cmd}' failed: {output[-400:]}"
+        logger.debug("build -> OK")
         return True, "compiled project classes"
 
     def find_javac(self) -> Optional[Path]:
@@ -145,20 +156,33 @@ class JavaCompiler:
             str(java_file),
         ]
 
+        # The javac error is handed to the repair loop, which means it never
+        # reaches the console — this is the only place it is ever recorded.
+        # Deliberately not logging the full command line: on a real project the
+        # classpath is hundreds of jars, and it would dwarf everything else.
+        logger.debug("javac %s (cp entries: %d, out: %s)",
+                     java_file.name, len(classpath.split(os.pathsep)),
+                     output_dir)
+
         try:
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=60
             )
             if result.returncode == 0:
+                logger.debug("  -> OK")
                 return True, ""
             # Extract the actual javac errors (skip lines that are just notes)
             stderr = (result.stderr or "").strip()
+            logger.debug("  -> FAILED (exit %s)\n%s", result.returncode, stderr)
             return False, stderr
         except subprocess.TimeoutExpired:
+            logger.debug("  -> TIMEOUT after 60s")
             return False, "javac timed out (60s)"
         except FileNotFoundError:
+            logger.debug("  -> javac not found at %s", javac)
             return False, f"javac not found at {javac}"
         except OSError as e:
+            logger.debug("  -> OS error: %s", e)
             return False, f"javac error: {e}"
 
     @staticmethod

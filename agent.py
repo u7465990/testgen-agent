@@ -19,6 +19,9 @@ from compiler import JavaCompiler
 from repair_loop import RepairLoop, TestFile
 from quality_analyzer import TestQualityAnalyzer, MutationAnalyzer
 from report_generator import AgentReport, MethodReport, ReportGenerator
+from runlog import setup_logging, get_logger, log_path_for
+
+logger = get_logger(__name__)
 
 
 class TestGeneratorAgent:
@@ -67,9 +70,37 @@ class TestGeneratorAgent:
 
     # ── Main entry point ──────────────────────────────────────
 
+    def _phase(self, name: str) -> None:
+        """Print a phase banner and record its start in the run log.
+
+        Elapsed time since the previous phase is logged too: when a run
+        suddenly takes 7x longer, it is usually one phase (compile-repair
+        retries), and the console alone does not show that.
+        """
+        now = time.time()
+        logger.info("=== %s === (+%.1fs since last phase)",
+                    name, now - self._phase_started)
+        self._phase_started = now
+        print(f"\n=== {name} ===")
+
     def run(self) -> AgentReport:
         """Execute the full pipeline and return a report."""
         start = time.time()
+        self._phase_started = start
+
+        log_path = setup_logging(self.project_path, self.config.verbose)
+        logger.info("run started: project=%s", self.project_path)
+        logger.info("log file: %s", log_path or "(unavailable)")
+        logger.info(
+            "config: provider=%s model=%s extraction=%s target_types=%s "
+            "max_per_method=%s max_repair=%s coverage=%s mutation=%s resume=%s",
+            self.config.llm_provider, self.config.llm_model,
+            self.config.extraction_mode, self.config.target_types,
+            self.config.max_tests_per_method, self.config.max_compile_attempts,
+            self.config.run_coverage_improvement,
+            self.config.run_mutation_analysis, self.config.resume,
+        )
+
         report = AgentReport()
         report.project_path = str(self.project_path)
         report.build_tool = self.analyzer.detect_build_tool()
@@ -94,7 +125,7 @@ class TestGeneratorAgent:
                 checkpoint_path.unlink()
 
         # ── Phase 1: Extraction ───────────────────────────────
-        print("\n=== Phase 1: Project Analysis ===")
+        self._phase("Phase 1: Project Analysis")
         sources = self.analyzer.find_source_files()
         report.source_files_found = len(sources)
         if not sources:
@@ -123,7 +154,7 @@ class TestGeneratorAgent:
         # One source file is processed at a time. The global counter stays
         # monotonic (it advances even for skipped targets) so class names
         # match a full run exactly — this is what makes resume safe.
-        print("\n=== Phases 2-4: Filtering, Targets & Generation (streaming) ===")
+        self._phase("Phases 2-4: Filtering, Targets & Generation (streaming)")
         test_files: List[TestFile] = []
         methods_found = 0
         methods_targeted = 0
@@ -192,7 +223,7 @@ class TestGeneratorAgent:
             return report
 
         # ── Phase 5: Compilation Repair ──────────────────────
-        print("\n=== Phase 5: Compilation Repair ===")
+        self._phase("Phase 5: Compilation Repair")
         compiled: List[TestFile] = []
         for tf in test_files:
             print(f"  [{test_files.index(tf)+1}/{len(test_files)}] "
@@ -212,7 +243,7 @@ class TestGeneratorAgent:
               f"(new this run)")
 
         # ── Phase 6: Coverage Improvement (MVP) ──────────────
-        print("\n=== Phase 6: Coverage Improvement ===")
+        self._phase("Phase 6: Coverage Improvement")
         additional = self.repairer.improve_coverage(compiled)
         compiled.extend(additional)
         report.tests_generated += len(additional)
@@ -226,7 +257,7 @@ class TestGeneratorAgent:
         all_tests = compiled + resumed
 
         # ── Phase 7: Final verification ─────────────────────
-        print("\n=== Phase 7: Final Verification ===")
+        self._phase("Phase 7: Final Verification")
         report.tests_runnable = 0
         classpath = self.compiler.resolve_classpath()
         for tf in all_tests:
@@ -272,7 +303,7 @@ class TestGeneratorAgent:
         # Compilation only proves the files parse. This measures whether the
         # tests are meaningful: empty classes, assertion density, and (via
         # PiTest) how many injected faults the tests actually catch.
-        print("\n=== Phase 8: Test Quality Analysis ===")
+        self._phase("Phase 8: Test Quality Analysis")
         quality = TestQualityAnalyzer.analyze(
             [(tf.class_name, tf.source_code) for tf in all_tests]
         )
@@ -325,7 +356,20 @@ class TestGeneratorAgent:
             print(f"  CSV report:  {state_dir / 'report.csv'}")
 
         print(f"\n  Test files are in: {self.test_dir}")
+        if log_path:
+            print(f"  Run log:     {log_path}")
         print("  Done.")
+
+        logger.info(
+            "run finished in %.1fs — generated=%d compiled=%d runnable=%d "
+            "mutation=%s",
+            report.duration_seconds, report.tests_generated,
+            report.tests_compiled, report.tests_runnable,
+            (f"{report.mutation_score:.1%}" if report.mutation_score is not None
+             else "n/a"),
+        )
+        if report.errors:
+            logger.info("run errors: %s", report.errors)
 
         return report
 

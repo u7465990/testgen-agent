@@ -25,6 +25,7 @@ TestGen Agent is a standalone Python tool that takes a Java project, discovers i
 - **Test-quality measurement** — mutation score (PiTest), assertion density, and empty-test-class detection
 - **Resumable** — an interrupted run resumes from a JSONL checkpoint instead of re-calling the LLM
 - **Human-readable report** — a Markdown report is written on every run
+- **Always-on run log** — every run writes `.testgen-agent/run.log`, including the diagnostics the console never shows (javac errors, LLM retries, classpath resolution)
 - **Structured output** — Markdown, JSON, CSV, and console report
 - **Claude Code skill** — install as `/generate-tests` in Claude Code
 
@@ -146,7 +147,38 @@ Output:
   --output-dir DIR                Test output directory (default: src/test/java)
   --report-format {json,csv,both,md,all}
                                   Report format (default: all = md + json + csv)
+
+Diagnostics:
+  -v, --verbose                   Also echo debug logging to the console
 ```
+
+## Debugging a run
+
+The console is a progress display — it tells you *what* is running, not *why* it
+failed. Every run also writes a debug log to `.testgen-agent/run.log`, which
+records the things that are otherwise swallowed: the full javac error that gets
+handed to the repair loop, LLM retries and their responses, and exactly what
+ended up on the classpath.
+
+```bash
+# What actually went wrong with that failing test?
+grep -A6 "FAILED (exit" .testgen-agent/run.log
+
+# Console says:  [FAIL] BankAccount_deposit_Dbl_Test_Boundary_5.java
+# Log says:      -> FAILED (exit 1)
+#                ...:3: 错误: 找不到符号
+#                import com.demo.BankAccount;
+#                  符号:   类 BankAccount
+#                  位置: 程序包 com.demo
+
+# Per-phase timings (where did the time go?)
+grep "since last phase" .testgen-agent/run.log
+
+# Classpath resolution
+grep -A8 "classpath resolved" .testgen-agent/run.log
+```
+
+Use `-v` to see the same output live on stderr. The log is rewritten on each run.
 
 ### Examples
 
@@ -265,6 +297,7 @@ agent/
 ├── repair_loop.py           LLM-based compilation repair + coverage loop
 ├── coverage_analyzer.py     JaCoCo XML parsing
 ├── quality_analyzer.py      Empty test classes, assertion density, PiTest parsing
+├── runlog.py                Run logging (.testgen-agent/run.log)
 ├── checkpoint.py            JSONL resume support
 ├── report_generator.py      Markdown + JSON + CSV + console output
 ├── skill_entry.py           Claude Code skill bridge

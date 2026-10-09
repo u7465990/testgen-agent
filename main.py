@@ -16,6 +16,9 @@ from pathlib import Path
 
 from config import AgentConfig
 from agent import TestGeneratorAgent
+from runlog import setup_logging, get_logger
+
+logger = get_logger(__name__)
 
 
 def build_config(args: argparse.Namespace) -> AgentConfig:
@@ -63,6 +66,13 @@ def cmd_analyze(config: AgentConfig) -> None:
     sources = analyzer.find_source_files()
     print(f"Found {len(sources)} source files:\n")
 
+    total_methods = 0
+    for src in sources:
+        total_methods += len(extractor.extract_methods(src))
+    logger.info("analyze: %d source files, %d methods, build tool=%s",
+                len(sources), total_methods, analyzer.detect_build_tool())
+    logger.debug("classpath: %s", analyzer.resolve_classpath())
+
     for src in sources:
         methods = extractor.extract_methods(src)
         print(f"  {src.qualified_name}")
@@ -98,17 +108,14 @@ def cmd_generate(config: AgentConfig) -> None:
 
 
 def cmd_repair(config: AgentConfig) -> None:
-    """Re-run compilation repair on already-generated tests.
+    """Re-compile already-generated tests and report which fail.
 
-    For MVP: scans the test directory for _Test_*.java files
-    and attempts to repair any that don't compile.
+    Scans the test directory for _Test_*.java files and compiles each one
+    against the project classpath. NOTE: despite the name it does not invoke
+    the LLM repair loop — it only reports status.
     """
     from compiler import JavaCompiler
-    from repair_loop import RepairLoop
-    from prompt_manager import PromptManager
-    from test_writer import TestWriter
-    from method_extractor import MethodExtractor
-    from llm_client import LLMClient
+    from java_analyzer import JavaProjectAnalyzer
 
     analyzer = JavaProjectAnalyzer(config.project_path)
     test_dir = analyzer.find_test_directory()
@@ -121,16 +128,19 @@ def cmd_repair(config: AgentConfig) -> None:
     print(f"Found {len(test_files)} generated test files")
 
     compiler = JavaCompiler(config)
-    classpath = compiler.resolve_classpath()
 
     success_count = 0
     for tf in test_files:
-        success, error = compiler.compile(tf, classpath)
+        # compile() resolves the classpath itself. Passing it again as
+        # extra_classpath duplicated every entry on the javac command line.
+        success, error = compiler.compile(tf)
         if success:
             success_count += 1
-            print(f"  ✓ {tf.name}")
+            # ASCII only: ✓/✗ are not in the GBK console codepage and crash
+            # on Windows when stdout is a real console.
+            print(f"  [OK]   {tf.name}")
         else:
-            print(f"  ✗ {tf.name}")
+            print(f"  [FAIL] {tf.name}")
             print(f"    {error[:200]}")
 
     print(f"\n{success_count}/{len(test_files)} compile successfully")
@@ -240,7 +250,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true",
-        help="Verbose output",
+        help="Also echo debug logging to the console (the run log in "
+             ".testgen-agent/run.log is always written)",
     )
 
     return parser.parse_args(argv)
@@ -249,6 +260,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv or sys.argv[1:])
     config = build_config(args)
+
+    # analyze/repair never reach TestGeneratorAgent.run(), which sets this up,
+    # so attach the run log here for every command. Idempotent.
+    setup_logging(config.project_path, config.verbose)
 
     if args.command == "analyze":
         cmd_analyze(config)

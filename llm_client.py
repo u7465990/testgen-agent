@@ -7,6 +7,9 @@ import time
 from typing import Optional
 
 from config import AgentConfig
+from runlog import get_logger
+
+logger = get_logger(__name__)
 
 
 class LLMError(Exception):
@@ -42,6 +45,14 @@ class LLMClient:
         """Send a chat completion request and return the text response."""
         last_error: Optional[Exception] = None
 
+        # Prompt *sizes* only — never the API key, and the prompt bodies would
+        # bloat the log for little diagnostic value.
+        logger.debug(
+            "LLM request provider=%s model=%s temp=%s sys=%dch user=%dch",
+            self.provider, self.model, self.temperature,
+            len(system_prompt), len(user_prompt),
+        )
+
         for attempt in range(1, self.max_retries + 1):
             try:
                 if self.provider == "openai":
@@ -53,7 +64,9 @@ class LLMClient:
                         ],
                         temperature=self.temperature,
                     )
-                    return response.choices[0].message.content or ""
+                    text = response.choices[0].message.content or ""
+                    logger.debug("LLM response %dch:\n%s", len(text), text)
+                    return text
 
                 elif self.provider == "anthropic":
                     response = self._client.messages.create(
@@ -71,10 +84,15 @@ class LLMClient:
                         for block in response.content
                         if getattr(block, "type", "") == "text" and block.text
                     )
+                    logger.debug("LLM response %dch:\n%s", len(text), text)
                     return text
 
             except Exception as e:
                 last_error = e
+                logger.debug(
+                    "LLM call failed (attempt %d/%d): %r",
+                    attempt, self.max_retries, e,
+                )
                 if attempt < self.max_retries:
                     wait = 2 ** attempt
                     print(f"  LLM call failed (attempt {attempt}), "
