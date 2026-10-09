@@ -14,6 +14,20 @@ TestGen Agent is a standalone Python tool that takes a Java project, discovers i
 
 > **Verification status:** the full pipeline has been **run end-to-end and verified** on the bundled `examples/demo-project` (see [Verified End-to-End Run](#verified-end-to-end-run)). Maven, Ant, Gradle, and manual project layouts are auto-detected by design; only the **Maven** path has been exercised in the demo verification so far.
 
+## What you get
+
+Everything lands in `<project>/.testgen-agent/` — deliberately **outside `target/`**,
+because the coverage phase runs `mvn clean` and would otherwise delete it mid-run.
+
+| Output | For | Contents |
+|---|---|---|
+| `report.md` | **humans** | Mutation score first, then the weakest classes and what needs a human |
+| `report.json` | CI / tooling | Every metric, machine-readable |
+| `report.csv` | spreadsheets | Per-test-file detail |
+| `run.log` | **debugging** | The diagnostics the console swallows — javac errors, LLM retries, classpath resolution, per-phase timings |
+
+Plus the generated tests themselves, written into the project's `src/test/java/`.
+
 ## Features
 
 - **Java project discovery** — auto-detects Maven, Ant, Gradle, or manual project layouts
@@ -42,11 +56,15 @@ The pipeline was executed against `examples/demo-project`, a small Maven Java 8 
 | Compile pass rate | 40 / 40 (100%) |
 | Tests executed via Maven surefire | 38 |
 | Pass rate (runtime) | 36 / 38 (94.7%) |
-| **Mutation score (PiTest)** | **67 / 80 (83.8%)** |
-| Assertion density | 2.79 per `@Test` method |
-| Empty test classes | 2 |
+| **Mutation score (PiTest)** | **60–67 / 80 (75–84%)** |
+| Assertion density | 2.75–2.79 per `@Test` method |
+| Empty test classes | 0–2 |
 
-The mutation score is the number that matters: it means these generated tests kill **83.8% of injected faults** — on par with the human-written baseline of 83.98% reported in the ICST 2026 replication study. Per class:
+The mutation score is the number that matters: **75–84% of injected faults are caught** — on par with the human-written baseline of 83.98% reported in the ICST 2026 replication study.
+
+> These are given as **ranges, not a single figure**, because every run regenerates the tests from scratch and the LLM does not produce the same output twice. Two measured runs on this project came out at 83.8% (67/80) and 75.0% (60/80). Quoting one run's number as *the* result would be exactly the kind of overclaiming this tool exists to avoid.
+
+Per class (from the 83.8% run):
 
 | Class | Mutation score |
 |-------|----------------|
@@ -55,12 +73,12 @@ The mutation score is the number that matters: it means these generated tests ki
 | `com.demo.Calculator` | 78.9% (15/19) |
 | `com.demo.BankAccount` | 76.5% (13/17) |
 
-**Honest caveats observed during the run** — most of these are now *measured* rather than merely acknowledged:
+**Honest caveats** — most of these are now *measured* rather than merely acknowledged, and they vary run to run:
 
-- **2 of 40 generated files were empty test classes** (compiled but contained no `@Test` method). The compilation check does not catch this; the `empty_test_classes` metric does, and the agent now reports it.
-- **2 of 38 executed tests failed** because the LLM misunderstood a class invariant (`BankAccount` forbids negative balances in its constructor, so an overdrawn state is unreachable through the public API — the generated `isOverdrawn` tests tried to construct one anyway). PiTest requires a green suite, so these two are automatically excluded from mutation analysis and listed in the report.
-- **5 of 80 mutants were never reached by any test** (`NO_COVERAGE`) — a coverage gap, not an assertion gap, and the report breaks it out separately.
-- The demo run used `--no-coverage`, so the coverage-guided phase (Phase B) was **not** exercised in this run; it is implemented and was exercised in the underlying Defects4J experiments.
+- **0–2 of 40 generated files were empty test classes** (compiled but contained no `@Test` method). The compilation check does not catch this; the `empty_test_classes` metric does, and the agent now reports it.
+- **2 of 38 executed tests failed** because the LLM misunderstood a class invariant (`BankAccount` forbids negative balances in its constructor, so an overdrawn state is unreachable through the public API — the generated `isOverdrawn` tests tried to construct one anyway). PiTest requires a green suite, so these are automatically excluded from mutation analysis and listed in the report.
+- **5–12 of 80 mutants were never reached by any test** (`NO_COVERAGE`) — a coverage gap, not an assertion gap, and the report breaks it out separately.
+- The demo runs used `--no-coverage`, so the coverage-guided phase (Phase B) was **not** exercised; it is implemented and was exercised in the underlying Defects4J experiments.
 
 Run artifacts (report.json / report.csv / surefire results / generated tests) are in the repo for inspection. See the [demo README](examples/demo-project/README.md) for reproduction steps.
 
@@ -205,11 +223,15 @@ testgen-agent generate ./my-project --report-format csv
 testgen-agent generate ./my-project -v
 
 # Reproduce the verified demo run (bundled example project)
-cd examples/demo-project && mvn -q compile
-cd ../.. && python main.py generate examples/demo-project \
+python main.py generate examples/demo-project \
   --provider anthropic --model deepseek-v4-flash --max-per-method 2 --no-coverage
-cd examples/demo-project && mvn test
+cd examples/demo-project && mvn test   # uses `clean` if re-running
 ```
+
+> No `mvn compile` first — the agent builds the project itself before generating
+> anything, because `javac` cannot see the project's own classes otherwise. (An
+> earlier version omitted this, and every test failed with `cannot find symbol`
+> on any project that had not been pre-built. See fix 9 below.)
 
 ## How It Works
 
@@ -222,6 +244,8 @@ Project Directory
 [1] Project Analysis
   │  Detect build tool (Maven/Ant/Gradle/manual)
   │  Walk src/main/java for .java files
+  │  Build the project if its classes are not there yet — javac
+  │  cannot see the project's own types otherwise
   │  Resolve classpath
   ▼
 [2] Method Extraction
@@ -282,33 +306,30 @@ Branch conditions extracted from source code replace the Jimple IR used in earli
 
 ### Project Layout
 
+~3,800 lines of Python across 19 modules — all at the repo root.
+
 ```
-agent/
-├── main.py                  CLI entry point
-├── config.py                AgentConfig dataclass
-├── agent.py                 TestGeneratorAgent orchestrator
-├── java_analyzer.py         Project discovery (build tool, sources, classpath)
-├── method_extractor.py      javalang-based method extraction
-├── target_generator.py      Rule-based target generation
-├── prompt_manager.py        Prompt template loading + substitution
-├── llm_client.py            Unified OpenAI + Anthropic/DeepSeek client
-├── test_writer.py           Test formatting, naming, file I/O
-├── compiler.py              javac invocation + classpath resolution
-├── repair_loop.py           LLM-based compilation repair + coverage loop
-├── coverage_analyzer.py     JaCoCo XML parsing
-├── quality_analyzer.py      Empty test classes, assertion density, PiTest parsing
-├── runlog.py                Run logging (.testgen-agent/run.log)
-├── checkpoint.py            JSONL resume support
-├── report_generator.py      Markdown + JSON + CSV + console output
-├── skill_entry.py           Claude Code skill bridge
-├── prompts/
-│   ├── generate_system.txt
-│   ├── generate_user.txt
-│   ├── repair_system.txt
-│   └── repair_user.txt
-├── examples/
-│   └── demo-project/        Verified end-to-end demo (Maven, Java 8)
-└── skill.yaml               Claude Code skill manifest
+agent.py             566  TestGeneratorAgent — the 8-phase orchestrator
+repair_loop.py       413  Compilation repair loop + coverage improvement
+report_generator.py  401  Markdown / JSON / CSV / console output
+java_analyzer.py     312  Project discovery, build-tool detection, classpath
+main.py              277  CLI entry point
+quality_analyzer.py  251  Empty classes, assertion density, PiTest parsing
+coverage_analyzer.py 235  JaCoCo XML parsing
+compiler.py          222  javac invocation + project build
+target_generator.py  212  Normal / Boundary / Exception / Path / Reflection targets
+test_writer.py       186  Test formatting, naming, file I/O
+method_extractor.py  166  javalang-based method extraction
+llm_client.py        104  Unified OpenAI + Anthropic/DeepSeek client
+skill_entry.py        96  Legacy CLI wrapper (see the skill note above)
+runlog.py             93  Run logging (.testgen-agent/run.log)
+config.py             87  AgentConfig dataclass
+prompt_manager.py     80  Prompt template loading + substitution
+checkpoint.py         60  JSONL resume support
+extractor/                Pluggable extraction backends (javalang, opt-in SootUp)
+prompts/                  Four prompt templates (generate/repair × system/user)
+examples/demo-project/    Verified end-to-end demo (Maven, Java 8, 4 classes)
+references/               Skill definition draft
 ```
 
 ## Output
@@ -441,19 +462,33 @@ Columns: `Project`, `FQN`, `Signature`, `SourceCode`, `BranchConditions`, `Class
 
 ## Claude Code Skill
 
-Install as a skill to use from within Claude Code:
+A working skill definition is in
+[`references/skill-draft-SKILL.md`](references/skill-draft-SKILL.md). Copy it into
+place and fill in this repo's absolute path:
 
 ```bash
-claude add skill ./agent/skill.yaml
+mkdir -p .claude/skills/generate-tests
+cp references/skill-draft-SKILL.md .claude/skills/generate-tests/SKILL.md
+# then replace <REPO> in that file with the absolute path to this repo
 ```
 
-Then in any Claude session:
+Start a new Claude Code session and:
 
 ```
-/generate-tests --project-path /path/to/project
+/generate-tests examples/demo-project
 ```
 
-Claude will run the agent, interpret the results, and present a summary.
+Claude reads the skill, runs the pipeline, reads `report.json`, and reports —
+including *why* any tests failed to compile, not just the counts.
+
+> **Note on `skill.yaml`.** An earlier version of this repo shipped a `skill.yaml`
+> containing a `command:` template and an `arguments:` schema, and the README told
+> you to run `claude add skill ./agent/skill.yaml`. None of that is how Claude Code
+> skills work: a skill is a `SKILL.md` with `name`/`description` frontmatter plus a
+> Markdown body of instructions — there is no parameter-templating engine, and
+> `claude add skill` is not a real command. As shipped, that skill never loaded.
+> `skill.yaml` and `skill_entry.py` are kept only as a historical CLI wrapper;
+> the definition above supersedes them.
 
 ## Requirements
 
@@ -488,6 +523,9 @@ Bugs found and fixed by actually running the pipeline on `examples/demo-project`
 6. **Checkpoint and reports lived inside `target/`** — the coverage phase runs `mvn clean`, which deleted the resume checkpoint and every report mid-run. Moved to `.testgen-agent/` at the project root, with an automatic migration of any legacy checkpoint.
 7. **PiTest requires a green suite** — it aborts with "did not pass without mutation" if any test fails, so a single failing generated test blocked the whole mutation phase. The agent now parses the offending test classes out of PiTest's output, excludes them, and retries — recording the exclusions in the report.
 8. **Compilation-only reporting was self-refuting** — the headline metric was "100% compile rate", but an empty test class compiles too. Mutation score, assertion density, and empty-class detection were added as Phase 8.
+9. **The pipeline never built the project** — `resolve_classpath()` only adds `target/classes` when it already exists, so on a project that had not been pre-built every generated test failed with `cannot find symbol`. A clean-copy run scored a 45% compile rate (18/40) and took 7x longer, because the repair loop burned 3 LLM attempts per test. It stayed hidden because these instructions told you to run `mvn -q compile` first. `JavaCompiler.ensure_project_built()` now builds before generating.
+10. **`main.py repair` crashed on every invocation** — it used `JavaProjectAnalyzer` without importing it, and printed a checkmark/cross that raise `UnicodeEncodeError` on a GBK console. It had never worked on Windows.
+11. **Diagnostics were invisible** — the javac error is handed to the repair loop and never printed, so a failing test showed only `[FAIL] <file>`. Every run now writes `.testgen-agent/run.log` with the full javac error, LLM retries, and classpath resolution. That log is what surfaced the classpath-deduplication and command-line-bloat issues fixed alongside it.
 
 ## License
 

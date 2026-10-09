@@ -8,7 +8,9 @@ TestGen Agent is a standalone Python tool that automatically generates **JUnit 4
 
 **Quality is measured, not assumed.** Compilation success only proves a file parses — an empty test class compiles fine. Phase 8 therefore reports mutation score (PiTest) as the headline metric, plus assertion density and empty-test-class detection.
 
-The verified demo run (`examples/demo-project`, Maven, Java 8, 4 classes) produced 40 tests with 100% compile rate, 36/38 runtime pass rate, and an **83.8% mutation score (67/80)** — on par with the human-written baseline (83.98%) in the ICST 2026 replication study. Full details are in `README.md`.
+The verified demo run (`examples/demo-project`, Maven, Java 8, 4 classes) produced 40 tests with 100% compile rate, 36/38 runtime pass rate, and a **75–84% mutation score (60–67 of 80)** — on par with the human-written baseline (83.98%) in the ICST 2026 replication study. Full details are in `README.md`.
+
+**Quote the range, not a single number.** Every run regenerates the tests and the LLM does not repeat itself; two measured runs scored 83.8% and 75.0%. Pinning one figure as *the* result is the overclaiming this project exists to avoid.
 
 ## Commands
 
