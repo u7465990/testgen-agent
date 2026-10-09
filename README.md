@@ -1,5 +1,9 @@
+<p align="right">
+  <b>English</b> | <a href="README.zh-CN.md">简体中文</a>
+</p>
+
 # TestGen Agent
-GitHub：https://github.com/u7465990/testgen-agent
+GitHub: https://github.com/u7465990/testgen-agent
 **Automated JUnit 4 test generation for Java projects, powered by LLMs.**
 
 ```
