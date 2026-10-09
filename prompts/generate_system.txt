@@ -1,6 +1,6 @@
 Test Generator {
     @persona {
-        You are an expert Java developer who specializes in writing JUnit 4 unit tests.
+        You are an expert Java developer who specializes in writing #{JUnitVersionLabel}# unit tests.
         Your tests always compile and run correctly because you strictly follow the rules.
     }
 
@@ -19,15 +19,15 @@ Test Generator {
     }
 
     @instruction {
-        @command: Generate one JUnit 4 test method that achieves the generation_target, using ONLY the provided context and allowed imports.
+        @command: Generate one #{JUnitVersionLabel}# test method that achieves the generation_target, using ONLY the provided context and allowed imports.
 
         @rule1: IMPORTS ARE RESTRICTED. You may ONLY import from the list in focal_method_allowed_imports. Using any class outside this list is FORBIDDEN and will make the test uncompilable.
         @rule2: Use the focal_method_FQN to import and call the class under test. Do not invent package names or classes.
         @rule3: IF focal_method_modifiers CONTAINS "private", you MUST invoke the method using Java reflection: call getDeclaredMethod, then setAccessible(true), then invoke. Use try-catch for IllegalAccessException/InvocationTargetException.
         @rule4: Parameter types and order must match focal_method_signature exactly. Use appropriate concrete values based on generation_target (e.g., null for boundary, extreme values, empty strings, zero, etc.).
-        @rule5: For exception testing, use try-catch and fail() if exception is not thrown, or @Test(expected=Exception.class). Do NOT use assertThrows() (not available in JUnit 4).
+        #{JUnitExceptionRule}#
         @rule6: The output must contain only the Java test class, including imports and one @Test method. No markdown, no explanations.
-        @rule7: Use JUnit 4 and JDK 8. No lambdas, no Java 8+ exclusive APIs. Use org.junit.Assert.* for assertions.
+        #{JUnitSyntaxRule}#
         @rule8: The test class must be public and have a unique name based on the focal method and generation_target.
 
         @format {

@@ -30,6 +30,9 @@ class AgentReport:
     # Input
     project_path: str = ""
     build_tool: str = ""
+    # Detected Java/JUnit versions and how they were determined — so a wrong
+    # guess in a `--junit auto` run can be traced to its evidence.
+    target_profile: Dict[str, Any] = field(default_factory=dict)
 
     # Extraction
     source_files_found: int = 0
@@ -90,6 +93,9 @@ class ReportGenerator:
         print(f"{line}")
         print(f"  Project:        {report.project_path}")
         print(f"  Build tool:     {report.build_tool}")
+        if report.target_profile:
+            print(f"  Target:         Java {report.target_profile.get('java_version')}"
+                  f" / JUnit {report.target_profile.get('junit_version')}")
         print(f"  Source files:   {report.source_files_found}")
         print(f"  Methods found:  {report.methods_found}")
         print(f"  Methods targeted: {report.methods_targeted}")
@@ -183,10 +189,19 @@ class ReportGenerator:
 
         out.append(f"# TestGen Agent 报告 — {project_name}")
         out.append("")
-        out.append(
-            f"> 生成于 {stamp} · 耗时 {report.duration_seconds:.1f}s · "
-            f"构建工具 `{report.build_tool or 'unknown'}`"
-        )
+        if report.target_profile:
+            tp = report.target_profile
+            out.append(
+                f"> 生成于 {stamp} · 耗时 {report.duration_seconds:.1f}s · "
+                f"构建工具 `{report.build_tool or 'unknown'}` · "
+                f"目标 `Java {tp.get('java_version')} / "
+                f"JUnit {tp.get('junit_version')}`"
+            )
+        else:
+            out.append(
+                f"> 生成于 {stamp} · 耗时 {report.duration_seconds:.1f}s · "
+                f"构建工具 `{report.build_tool or 'unknown'}`"
+            )
         out.append("")
 
         # ── Headline metrics ──

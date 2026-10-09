@@ -20,6 +20,7 @@ from repair_loop import RepairLoop, TestFile
 from quality_analyzer import TestQualityAnalyzer, MutationAnalyzer
 from report_generator import AgentReport, MethodReport, ReportGenerator
 from runlog import setup_logging, get_logger, log_path_for
+from target_profile import TargetProfile, detect_into, pom_declares
 
 logger = get_logger(__name__)
 
@@ -41,16 +42,23 @@ class TestGeneratorAgent:
         self.project_path = config.project_path
         self.project_name = config.project_path.name
 
+        # The Java/JUnit versions to generate for. Detected in Phase 1 (it
+        # needs the resolved classpath), so every sub-module below holds a
+        # reference to this same object and reads it at use time.
+        self.profile = TargetProfile()
+
         # Sub-modules
         self.analyzer = JavaProjectAnalyzer(config.project_path)
         self.extractor = MethodExtractor(
             project_name=self.project_name,
             mode=config.extraction_mode,
             java_home=config.java_home,
+            profile=self.profile,
         )
         self.target_gen = TargetGenerator(
             target_types=config.target_types,
             max_tests_per_method=config.max_tests_per_method,
+            profile=self.profile,
         )
         self.prompt_mgr = PromptManager(
             Path(__file__).parent / "prompts"
@@ -62,10 +70,10 @@ class TestGeneratorAgent:
             else self.analyzer.find_test_directory()
         )
         self.writer = TestWriter(self.test_dir)
-        self.compiler = JavaCompiler(config)
+        self.compiler = JavaCompiler(config, profile=self.profile)
         self.repairer = RepairLoop(
             self.llm, self.prompt_mgr, self.compiler,
-            self.writer, config
+            self.writer, config, profile=self.profile
         )
 
     # ── Main entry point ──────────────────────────────────────
@@ -93,12 +101,14 @@ class TestGeneratorAgent:
         logger.info("log file: %s", log_path or "(unavailable)")
         logger.info(
             "config: provider=%s model=%s extraction=%s target_types=%s "
-            "max_per_method=%s max_repair=%s coverage=%s mutation=%s resume=%s",
+            "max_per_method=%s max_repair=%s coverage=%s mutation=%s resume=%s "
+            "junit=%s java=%s",
             self.config.llm_provider, self.config.llm_model,
             self.config.extraction_mode, self.config.target_types,
             self.config.max_tests_per_method, self.config.max_compile_attempts,
             self.config.run_coverage_improvement,
             self.config.run_mutation_analysis, self.config.resume,
+            self.config.junit_version, self.config.java_version,
         )
 
         report = AgentReport()
@@ -149,6 +159,24 @@ class TestGeneratorAgent:
             print("  [Build] Generated tests will likely fail to compile — "
                   "build the project and re-run.")
             report.errors.append(f"Project build failed: {build_message}")
+
+        # Detect the target framework now: it needs the resolved classpath,
+        # which only exists after the build above. Doing it here rather than up
+        # front is what lets `auto` follow the project instead of guessing.
+        detect_into(
+            self.profile,
+            self.project_path,
+            classpath=self.compiler.resolve_classpath(),
+            configured_java=self.config.java_version,
+            configured_junit=self.config.junit_version,
+            javac_path=self.compiler.find_javac(),
+        )
+        report.target_profile = self.profile.to_dict()
+        print(f"  [Target] {self.profile.describe()}")
+        logger.info("target profile: %s", self.profile.describe())
+        for warning in self.profile.warnings:
+            print(f"  [Target] WARNING: {warning}")
+            report.errors.append(warning)
 
         # ── Phases 2-4: streaming filter → target → generate ─
         # One source file is processed at a time. The global counter stays
@@ -455,6 +483,26 @@ class TestGeneratorAgent:
         })
         if not packages:
             print("  [Mutation] No package information available, skipping.")
+            return
+
+        # PiTest cannot see JUnit 5 tests without pitest-junit5-plugin, and
+        # that dependency can ONLY be declared in the target pom — the plugin
+        # is invoked here as a fully-qualified GAV with bare -D properties, so
+        # there is no channel to inject a dependency. Without this check Maven
+        # fails with an opaque "no tests found" style error after a long run.
+        if self.profile.junit_version == 5 and not pom_declares(
+            self.project_path, "pitest-junit5-plugin"
+        ):
+            message = (
+                "Mutation analysis skipped: the project uses JUnit 5 but its "
+                "pom.xml does not declare the pitest-junit5-plugin dependency, "
+                "which PiTest requires to run JUnit 5 tests (it cannot be "
+                "passed on the command line). Add it to the pitest-maven "
+                "<dependencies> to enable mutation scoring."
+            )
+            print(f"  [Mutation] {message}")
+            logger.warning("mutation skipped: %s", message)
+            report.errors.append(message)
             return
 
         # PiTest takes a comma-separated glob of the classes to mutate.

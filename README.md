@@ -4,7 +4,7 @@
 
 # TestGen Agent
 GitHub: https://github.com/u7465990/testgen-agent
-**Automated JUnit 4 test generation for Java projects, powered by LLMs.**
+**Automated JUnit 4/5 test generation for Java projects, powered by LLMs.**
 
 ```
 pip install testgen-agent
@@ -12,11 +12,13 @@ testgen-agent analyze  ./my-project
 testgen-agent generate ./my-project
 ```
 
-TestGen Agent is a standalone Python tool that takes a Java project, discovers its methods, generates JUnit 4 unit tests using an LLM (OpenAI, Anthropic, or any Anthropic-compatible endpoint such as DeepSeek), compiles and repairs them, and measures how good the result actually is. It replaces a fragmented manual pipeline with a single autonomous agent.
+TestGen Agent is a standalone Python tool that takes a Java project, discovers its methods, generates JUnit unit tests using an LLM (OpenAI, Anthropic, or any Anthropic-compatible endpoint such as DeepSeek), compiles and repairs them, and measures how good the result actually is. It replaces a fragmented manual pipeline with a single autonomous agent.
+
+**It follows the project it is pointed at.** The JUnit version (4 or 5) and target Java level are auto-detected — read from the project's build file and its resolved test classpath — so the same agent produces `org.junit.Assert` for a JUnit 4 codebase and `assertThrows(..., () -> ...)` for a JUnit 5 one. `--junit {auto,4,5}` and `--java {auto,8,11,17,21}` force it when detection is not what you want.
 
 > **Measuring the right thing.** Compilation success only proves a test file parses — an empty test class compiles perfectly. TestGen Agent therefore reports **mutation score** (PiTest) as its headline metric: the fraction of injected faults the generated tests actually catch.
 
-> **Verification status:** the full pipeline has been **run end-to-end and verified** on the bundled `examples/demo-project` (see [Verified End-to-End Run](#verified-end-to-end-run)). Maven, Ant, Gradle, and manual project layouts are auto-detected by design; only the **Maven** path has been exercised in the demo verification so far.
+> **Verification status:** the full pipeline has been **run end-to-end and verified** on both bundled examples — `examples/demo-project` (JUnit 4 / Java 8) and `examples/demo-project-junit5` (JUnit 5 / Java 17) — see [Verified End-to-End Run](#verified-end-to-end-run). Maven, Ant, Gradle, and manual project layouts are auto-detected by design; only the **Maven** path has been exercised in the demo verification so far.
 
 ## What you get
 
@@ -86,6 +88,21 @@ Per class (from the 83.8% run):
 
 Run artifacts (report.json / report.csv / surefire results / generated tests) are in the repo for inspection. See the [demo README](examples/demo-project/README.md) for reproduction steps.
 
+### JUnit 5 / Java 17 run
+
+`examples/demo-project-junit5` holds the **same four classes** with a JUnit 5 pom, to verify that the agent follows the project rather than imposing a framework. Auto-detection picked **Java 17 / JUnit 5** with no flags, and one run produced:
+
+| Metric | Result |
+|--------|--------|
+| Test files generated | 40 |
+| Compile pass rate | 40 / 40 (100%) |
+| Tests executed (surefire) | 43 |
+| **Mutation score (PiTest)** | **66 / 80 (82.5%)** |
+| Assertion density | 2.30 per `@Test` method |
+| Empty test classes | 1 |
+
+The comparison is the point: the same agent, run on two projects, emits `org.junit.Assert` / `@Test(expected=...)`-style code for the Java 8 one and `org.junit.jupiter.api.Assertions` for the Java 17 one. See the [JUnit 5 demo README](examples/demo-project-junit5/README.md) — including the one idiom it *doesn't* get right yet (`assertThrows` is never requested, because the exception targets only cover declared checked exceptions).
+
 ## Quick Start
 
 ### Installation
@@ -148,6 +165,12 @@ LLM:
   --model MODEL                   Model name (default: gpt-4o-mini)
   --api-key KEY                   API key (default: reads env var)
   --temperature TEMP              LLM temperature (default: 0.2)
+
+Target framework:
+  --junit {auto,4,5}              JUnit version to generate for (default: auto
+                                  = follow the project's test classpath)
+  --java {auto,8,11,17,21}        Java level for the generated tests (default:
+                                  auto = follow the project's build file)
 
 Method filtering:
   --package PACKAGE               Only target this package (repeatable)
@@ -310,30 +333,32 @@ Branch conditions extracted from source code replace the Jimple IR used in earli
 
 ### Project Layout
 
-~3,800 lines of Python across 19 modules — all at the repo root.
+~4,500 lines of Python across 20 modules — all at the repo root.
 
 ```
-agent.py             566  TestGeneratorAgent — the 8-phase orchestrator
-repair_loop.py       413  Compilation repair loop + coverage improvement
-report_generator.py  401  Markdown / JSON / CSV / console output
+agent.py             614  TestGeneratorAgent — the 8-phase orchestrator
+repair_loop.py       418  Compilation repair loop + coverage improvement
+report_generator.py  416  Markdown / JSON / CSV / console output
+target_profile.py    414  Java/JUnit version detection for the project under test
+main.py              319  CLI entry point
 java_analyzer.py     312  Project discovery, build-tool detection, classpath
-main.py              277  CLI entry point
-quality_analyzer.py  251  Empty classes, assertion density, PiTest parsing
+quality_analyzer.py  258  Empty classes, assertion density, PiTest parsing
+compiler.py          242  javac invocation + project build
 coverage_analyzer.py 235  JaCoCo XML parsing
-compiler.py          222  javac invocation + project build
-target_generator.py  212  Normal / Boundary / Exception / Path / Reflection targets
+target_generator.py  231  Normal / Boundary / Exception / Path / Reflection targets
+method_extractor.py  199  javalang-based method extraction
 test_writer.py       186  Test formatting, naming, file I/O
-method_extractor.py  166  javalang-based method extraction
+prompt_manager.py    165  Prompt template loading + substitution
 llm_client.py        104  Unified OpenAI + Anthropic/DeepSeek client
+config.py             96  AgentConfig dataclass
 skill_entry.py        96  Legacy CLI wrapper (see the skill note above)
 runlog.py             93  Run logging (.testgen-agent/run.log)
-config.py             87  AgentConfig dataclass
-prompt_manager.py     80  Prompt template loading + substitution
 checkpoint.py         60  JSONL resume support
 extractor/                Pluggable extraction backends (javalang, opt-in SootUp)
 prompts/                  Four prompt templates (generate/repair × system/user)
-examples/demo-project/    Verified end-to-end demo (Maven, Java 8, 4 classes)
-references/               Skill definition draft
+examples/demo-project/        Verified demo — JUnit 4 + Java 8
+examples/demo-project-junit5/ Same classes, JUnit 5 + Java 17 (framework detection)
+references/                   Skill definition draft
 ```
 
 ## Output
@@ -496,7 +521,7 @@ including *why* any tests failed to compile, not just the counts.
 
 ## Requirements
 
-- **Java 8+** (for compiling generated tests — the project under test must target Java 8)
+- **Java 8+** (for compiling generated tests — generated tests match the level the target project declares, auto-detected; Java 8 is the floor)
 - **Python 3.10+**
 - **Javac** — must be on `PATH` or `JAVA_HOME` set
 - **Maven** *(optional)* — needed for classpath resolution, coverage (Phase B), and mutation analysis (Phase 8). Mutation analysis additionally needs **JDK 11+** to run PiTest.
@@ -506,12 +531,14 @@ On Windows, `javac` resolution requires `JAVA_HOME` to point to a JDK (not JRE),
 
 ## Limitations
 
-- Generated tests are **JUnit 4**, Java 8 compatible — no JUnit 5, no lambdas, no Java 8+ APIs
+- Generated tests match the **project's own framework** (JUnit 4 or 5) and compiler level — both auto-detected. For a JUnit 4 project that means no lambdas and no `assertThrows`; for JUnit 5, lambdas are allowed and expected. Java 8 is the floor.
 - **No mocking.** The prompt forbids Mockito, so classes with injected dependencies (services, repositories) generally cannot produce runnable tests. This is the single biggest gap for real-world projects.
+- **Exception targets are only generated for *declared* checked exceptions** (`throws` in the signature). A method that throws an unchecked exception (`IllegalArgumentException`, `NullPointerException`) gets no `[Exception]` target, so the LLM tends to assert it with `try/catch` instead of `assertThrows`. Detecting `throw new X(...)` in the method body is the follow-up that would fix this.
 - Generated test files use the naming convention `ClassName_method_ParamType_Test_Type_N`. Maven projects must configure surefire's `<includes>` (e.g. `**/*_Test_*.java`) for them to be executed — see `examples/demo-project/pom.xml`.
 - Branch conditions are extracted from **source code** rather than Jimple IR (may miss compiler-generated branches)
 - Phase B (coverage improvement) requires **Maven + JaCoCo** configured in the target project
 - Mutation analysis (Phase 8) requires **Maven** and a **JDK 11+** to run PiTest — it needs `pitest-maven`, resolved on demand and pinned via `--pitest-version`. PiTest also refuses to run unless the test suite is green; failing test classes are automatically excluded and listed in the report.
+- **Mutation analysis on a JUnit 5 project additionally requires the target pom to declare `pitest-junit5-plugin`** — PiTest cannot see JUnit 5 tests without it, and the dependency cannot be passed on the command line. The agent detects its absence and skips with an explicit message instead of failing opaquely. See `examples/demo-project-junit5/pom.xml`.
 - Compiled-but-empty test classes are reported but **not** automatically regenerated
 - Large projects with hundreds of methods may take significant time and API tokens (single-threaded today)
 

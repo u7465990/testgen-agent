@@ -28,7 +28,14 @@ logger = get_logger(__name__)
 # ── Patterns for static source analysis ───────────────────────
 # Matches @Test and @Test(expected = ...). Kept loose on purpose: a false
 # "not empty" is far less harmful here than a false "empty".
-_TEST_ANNOTATION_RE = re.compile(r"@Test\b")
+#
+# JUnit 5's other test annotations are listed explicitly: @Test\b alone would
+# not match any of them (the \b fails on "dTest"/"tedTest"), so a class
+# containing only a @ParameterizedTest would be reported as an empty test
+# class — the exact false negative this metric exists to catch.
+_TEST_ANNOTATION_RE = re.compile(
+    r"@(?:Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)\b"
+)
 # assertEquals / assertTrue / Assert.assertNotNull / assertThat — and fail().
 _ASSERT_RE = re.compile(r"\bassert[A-Za-z0-9_]*\s*\(", re.IGNORECASE)
 _FAIL_RE = re.compile(r"\bfail\s*\(")

@@ -18,6 +18,7 @@ from prompt_manager import PromptManager
 from test_writer import TestWriter
 from method_extractor import MethodInfo
 from runlog import get_logger
+from target_profile import TargetProfile
 
 logger = get_logger(__name__)
 
@@ -59,6 +60,7 @@ class RepairLoop:
         compiler: JavaCompiler,
         test_writer: TestWriter,
         config: AgentConfig,
+        profile: Optional[TargetProfile] = None,
     ):
         self.llm = llm_client
         self.prompts = prompt_manager
@@ -66,6 +68,8 @@ class RepairLoop:
         self.writer = test_writer
         self.config = config
         self.project_path = config.project_path
+        # Shared, populated in place during Phase 1 — read at use time.
+        self.profile = profile or TargetProfile()
 
     # ── Phase A: Compilation repair ───────────────────────────
 
@@ -124,7 +128,7 @@ class RepairLoop:
 
             # Call LLM for repair
             sys_prompt, user_prompt = self.prompts.render_repair_prompt(
-                current_code, enhanced_error, allowed_imports
+                current_code, enhanced_error, allowed_imports, self.profile
             )
             try:
                 new_code = self.llm.generate(sys_prompt, user_prompt)
@@ -329,8 +333,9 @@ class RepairLoop:
                         "that trigger each missing branch.")
 
             target_text = (
-                f"[MissingBranch] Generate ONE JUnit 4 test method "
-                f"that covers {missed} uncovered branch(es). "
+                f"[MissingBranch] Generate ONE JUnit "
+                f"{self.profile.junit_version} test method that covers "
+                f"{missed} uncovered branch(es). "
                 f"{hint} "
                 "IMPORTANT: Use safe, realistic inputs only. "
                 "DO NOT use Integer.MIN_VALUE, Integer.MAX_VALUE, etc., "
@@ -338,8 +343,8 @@ class RepairLoop:
                 "For length/offset, prefer -1, 0, 1, 2. "
                 "For arrays/byte[], use non-null and small size. "
                 "For strings, use typical values like \"test\". "
-                "Assert the expected return value or exception "
-                "using JUnit 4 assertions. "
+                f"Assert the expected return value or exception "
+                f"using JUnit {self.profile.junit_version} assertions. "
                 "If the method is private, use reflection "
                 "with setAccessible(true)."
             )
@@ -347,7 +352,7 @@ class RepairLoop:
             # Call LLM to generate the new test
             try:
                 sys_prompt, user_prompt = self.prompts.render_generate_prompt(
-                    tf.method, target_text
+                    tf.method, target_text, self.profile
                 )
                 raw_code = self.llm.generate(sys_prompt, user_prompt)
             except Exception as e:

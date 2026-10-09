@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-testgen-agent — AI agent for automatic JUnit 4 test generation.
+testgen-agent — AI agent for automatic JUnit 4/5 test generation.
 
 Usage:
     testgen-agent analyze   <project-path>   # Discover methods
@@ -26,6 +26,8 @@ def build_config(args: argparse.Namespace) -> AgentConfig:
     return AgentConfig(
         project_path=Path(args.project_path),
         extraction_mode=args.extraction_mode,
+        junit_version=args.junit,
+        java_version=args.java,
         llm_provider=args.provider,
         llm_model=args.model,
         api_key=args.api_key,
@@ -51,16 +53,32 @@ def cmd_analyze(config: AgentConfig) -> None:
     """Discover source files and methods without generating tests."""
     from java_analyzer import JavaProjectAnalyzer
     from method_extractor import MethodExtractor
+    from target_profile import TargetProfile, detect_into
 
     analyzer = JavaProjectAnalyzer(config.project_path)
+
+    # Detect here too: this is the fast, no-LLM inspection path, so it is the
+    # natural place to check what `--junit auto` would resolve to before
+    # spending any API calls.
+    profile = detect_into(
+        TargetProfile(),
+        config.project_path,
+        classpath=analyzer.resolve_classpath(),
+        configured_java=config.java_version,
+        configured_junit=config.junit_version,
+    )
     extractor = MethodExtractor(
         project_name=config.project_path.name,
         mode=config.extraction_mode,
         java_home=config.java_home,
+        profile=profile,
     )
 
     print(f"Project: {config.project_path}")
     print(f"Build tool: {analyzer.detect_build_tool()}")
+    print(f"Target: {profile.describe()}")
+    for warning in profile.warnings:
+        print(f"  [WARN] {warning}")
     print()
 
     sources = analyzer.find_source_files()
@@ -116,6 +134,7 @@ def cmd_repair(config: AgentConfig) -> None:
     """
     from compiler import JavaCompiler
     from java_analyzer import JavaProjectAnalyzer
+    from target_profile import TargetProfile, detect_into
 
     analyzer = JavaProjectAnalyzer(config.project_path)
     test_dir = analyzer.find_test_directory()
@@ -127,7 +146,17 @@ def cmd_repair(config: AgentConfig) -> None:
 
     print(f"Found {len(test_files)} generated test files")
 
-    compiler = JavaCompiler(config)
+    # Compile at the project's own Java level, not a hard-coded 8.
+    profile = detect_into(
+        TargetProfile(),
+        config.project_path,
+        classpath=analyzer.resolve_classpath(),
+        configured_java=config.java_version,
+        configured_junit=config.junit_version,
+    )
+    print(f"Target: {profile.describe()}")
+
+    compiler = JavaCompiler(config, profile=profile)
 
     success_count = 0
     for tf in test_files:
@@ -148,7 +177,7 @@ def cmd_repair(config: AgentConfig) -> None:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="testgen-agent — automatic JUnit 4 test generation agent",
+        description="testgen-agent — automatic JUnit 4/5 test generation agent",
     )
     parser.add_argument(
         "command",
@@ -165,6 +194,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--extraction-mode", default="python",
         choices=["python", "sootup"],
         help="Extraction backend: 'python' (javalang, default) or 'sootup' (adds Jimple IR)",
+    )
+
+    # Target framework — "auto" follows the project under test
+    parser.add_argument(
+        "--junit", default="auto", choices=["auto", "4", "5"],
+        help="JUnit version to generate for: 'auto' (default) follows the "
+             "project's test classpath; 4 or 5 forces it",
+    )
+    parser.add_argument(
+        "--java", default="auto", choices=["auto", "8", "11", "17", "21"],
+        help="Java version to compile the generated tests for: 'auto' "
+             "(default) follows the project's pom/build file; an explicit "
+             "value is passed to javac as -source/-target",
     )
 
     # LLM options

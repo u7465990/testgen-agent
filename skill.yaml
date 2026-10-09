@@ -1,5 +1,5 @@
 name: generate-tests
-description: Generate JUnit 4 unit tests for any Java project. Discovers methods, generates test targets, generates test code via LLM, and repairs compilation errors.
+description: Generate JUnit 4 or JUnit 5 unit tests for any Java project (framework auto-detected from the project). Discovers methods, generates test targets, generates test code via LLM, and repairs compilation errors.
 command: python main.py generate {{project_path}} --provider {{provider}} --model {{model}} {{flags}}
 arguments:
   - name: project_path

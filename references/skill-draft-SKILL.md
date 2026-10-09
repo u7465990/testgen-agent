@@ -63,7 +63,7 @@ python <REPO>/main.py generate <project-path> \
 
 ## 已知局限（用户问起时如实说明）
 
-- 只支持 **JUnit 4 + Java 8**，不支持 JUnit 5 / lambda
+- 支持 **JUnit 4 和 JUnit 5**，版本从目标项目自动探测（`--junit auto`）；Java 版本同样自动探测（`--java auto`）
 - **不支持 mocking**（prompt 里禁了 Mockito），有依赖注入的类基本生成不出可运行测试
 - 覆盖率补测（Phase B）需要目标项目配好 Maven + JaCoCo
-- 没有 mutation testing，无法证明测试的**断言**有效
+- 变异测试（Phase 8，PiTest）在 **JUnit 5 项目上需要目标 pom 声明 `pitest-junit5-plugin`** ——该依赖无法通过命令行传入，缺失时 agent 会明确提示并跳过

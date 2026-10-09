@@ -25,6 +25,15 @@ class AgentConfig:
     # ── Extraction ────────────────────────────────────────────
     extraction_mode: str = "python"  # "python" (javalang) | "sootup" (javalang + Jimple)
 
+    # ── Target framework ──────────────────────────────────────
+    # "auto" follows the project under test (see target_profile.py): whichever
+    # JUnit is on its test classpath, and the Java level its pom declares. An
+    # explicit value forces it, which is how you generate JUnit 4 for a JUnit 5
+    # project (or vice versa). Resolution happens at runtime against the actual
+    # project, so the detected values live on a TargetProfile, not here.
+    junit_version: str = "auto"   # "auto" | "4" | "5"
+    java_version: str = "auto"    # "auto" | "8" | "11" | "17" | "21"
+
     # ── Method filtering ──────────────────────────────────────
     include_public: bool = True
     include_private: bool = True

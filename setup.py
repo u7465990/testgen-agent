@@ -8,7 +8,7 @@ with open("README.md", encoding="utf-8") as f:
 setup(
     name="testgen-agent",
     version="0.2.0",
-    description="Automated JUnit 4 test generation for any Java project, powered by LLMs.",
+    description="Automated JUnit 4/5 test generation for any Java project, powered by LLMs.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/your-username/testgen-agent",

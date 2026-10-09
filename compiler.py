@@ -11,6 +11,7 @@ from typing import Optional, Tuple
 from config import AgentConfig
 from java_analyzer import JavaProjectAnalyzer
 from runlog import get_logger
+from target_profile import TargetProfile
 
 logger = get_logger(__name__)
 
@@ -18,11 +19,29 @@ logger = get_logger(__name__)
 class JavaCompiler:
     """Resolves classpath and compiles Java test files with javac."""
 
-    def __init__(self, config: AgentConfig):
+    def __init__(
+        self, config: AgentConfig, profile: Optional[TargetProfile] = None
+    ):
         self.config = config
         self.project_path = config.project_path
+        self.profile = profile
         self._analyzer = JavaProjectAnalyzer(config.project_path)
         self._classpath: Optional[str] = None
+
+    def _java_version(self) -> int:
+        """The Java level to compile generated tests for.
+
+        The detected profile wins; without one (e.g. `main.py repair`, which
+        builds a compiler before any detection) fall back to an explicit
+        --java, and finally to Java 8 — the most conservative choice, since a
+        test targeting 8 still compiles on any newer JDK.
+        """
+        if self.profile is not None:
+            return self.profile.java_version
+        try:
+            return int(self.config.java_version)
+        except (TypeError, ValueError):
+            return 8
 
     def resolve_classpath(self) -> str:
         """Get the project classpath, caching the result."""
@@ -145,13 +164,14 @@ class JavaCompiler:
             output_dir = self.project_path / "target/test-classes"
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        java_version = self._java_version()
         cmd = [
             str(javac),
             "-cp", classpath,
             "-d", str(output_dir),
             "-encoding", "UTF-8",
-            "-source", "8",
-            "-target", "8",
+            "-source", str(java_version),
+            "-target", str(java_version),
             "-Xlint:-options",
             str(java_file),
         ]
@@ -160,9 +180,9 @@ class JavaCompiler:
         # reaches the console — this is the only place it is ever recorded.
         # Deliberately not logging the full command line: on a real project the
         # classpath is hundreds of jars, and it would dwarf everything else.
-        logger.debug("javac %s (cp entries: %d, out: %s)",
-                     java_file.name, len(classpath.split(os.pathsep)),
-                     output_dir)
+        logger.debug("javac %s (java %d, cp entries: %d, out: %s)",
+                     java_file.name, java_version,
+                     len(classpath.split(os.pathsep)), output_dir)
 
         try:
             result = subprocess.run(

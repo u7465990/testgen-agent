@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 from java_analyzer import SourceFile
+from target_profile import TargetProfile
 
 
 # ── Data model ────────────────────────────────────────────────
@@ -46,13 +47,9 @@ class MethodInfo:
 
 # ── Strings always allowed in generated tests ─────────────────
 
-ALWAYS_ALLOWED: Set[str] = {
-    "org.junit.Test",
-    "org.junit.Assert",
-    "org.junit.Assert.*",
-    "org.junit.Before",
-    "org.junit.After",
-    "org.junit.Ignore",
+# Version-independent: reflection (required to invoke private methods) and the
+# IO types the prompts are permitted to construct.
+_ALWAYS_ALLOWED_COMMON: Set[str] = {
     "java.lang.reflect.Method",
     "java.lang.reflect.InvocationTargetException",
     "java.lang.reflect.*",
@@ -62,6 +59,38 @@ ALWAYS_ALLOWED: Set[str] = {
     "java.io.ObjectOutputStream",
     "java.io.IOException",
 }
+
+_ALWAYS_ALLOWED_JUNIT4: Set[str] = {
+    "org.junit.Test",
+    "org.junit.Assert",
+    "org.junit.Assert.*",
+    "org.junit.Before",
+    "org.junit.After",
+    "org.junit.Ignore",
+}
+
+# JUnit 5 renamed every one of these (Test stays but Assert did not), and
+# assertThrows() takes an Executable — so a lambda-based exception test cannot
+# compile unless that type is importable.
+_ALWAYS_ALLOWED_JUNIT5: Set[str] = {
+    "org.junit.jupiter.api.Test",
+    "org.junit.jupiter.api.Assertions",
+    "org.junit.jupiter.api.Assertions.*",
+    "org.junit.jupiter.api.BeforeEach",
+    "org.junit.jupiter.api.AfterEach",
+    "org.junit.jupiter.api.BeforeAll",
+    "org.junit.jupiter.api.AfterAll",
+    "org.junit.jupiter.api.Disabled",
+    "org.junit.jupiter.api.function.Executable",
+}
+
+
+def always_allowed(junit_version: int = 4) -> Set[str]:
+    """The base import whitelist for a JUnit version (4 or 5)."""
+    junit = (
+        _ALWAYS_ALLOWED_JUNIT5 if junit_version == 5 else _ALWAYS_ALLOWED_JUNIT4
+    )
+    return _ALWAYS_ALLOWED_COMMON | junit
 
 KEYWORD_SET: Set[str] = {
     "abstract", "assert", "boolean", "break", "byte", "case", "catch",
@@ -88,13 +117,17 @@ class MethodExtractor:
     def __init__(self, project_name: str = "",
                  mode: str = "python",
                  java_home: Optional[str] = None,
-                 sootup_jars: Optional[List[Path]] = None):
+                 sootup_jars: Optional[List[Path]] = None,
+                 profile: Optional[TargetProfile] = None):
         self.project_name = project_name
         self.mode = mode
+        self.profile = profile or TargetProfile()
 
         # Always use javalang for basic extraction
         from extractor.javalang_backend import JavalangBackend
-        self._primary = JavalangBackend(project_name=project_name)
+        self._primary = JavalangBackend(
+            project_name=project_name, profile=self.profile
+        )
 
         # Conditionally add SootUp
         self._sootup = None

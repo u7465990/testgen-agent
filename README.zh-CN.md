@@ -4,7 +4,7 @@
 
 # TestGen Agent
 GitHub：https://github.com/u7465990/testgen-agent
-**用 LLM 为 Java 项目自动生成 JUnit 4 测试。**
+**用 LLM 为 Java 项目自动生成 JUnit 4 / JUnit 5 测试。**
 
 ```
 pip install testgen-agent
@@ -12,11 +12,13 @@ testgen-agent analyze  ./my-project
 testgen-agent generate ./my-project
 ```
 
-TestGen Agent 是一个独立的 Python 工具：输入一个 Java 项目，自动发现其中的方法，用 LLM（OpenAI、Anthropic，或任何 Anthropic 兼容端点如 DeepSeek）生成 JUnit 4 单元测试，编译并修复它们，**并度量这份结果到底好不好**。它把一套割裂的手工流程替换成单个自治的 agent。
+TestGen Agent 是一个独立的 Python 工具：输入一个 Java 项目，自动发现其中的方法，用 LLM（OpenAI、Anthropic，或任何 Anthropic 兼容端点如 DeepSeek）生成 JUnit 单元测试，编译并修复它们，**并度量这份结果到底好不好**。它把一套割裂的手工流程替换成单个自治的 agent。
+
+**它跟随被测项目，而不是强加一套框架。** JUnit 版本（4 还是 5）和目标 Java 版本都会自动探测——从项目的构建文件和已解析的测试 classpath 读取——所以同一个 agent 对 JUnit 4 代码库产出 `org.junit.Assert`，对 JUnit 5 代码库产出 `assertThrows(..., () -> ...)`。探测结果不符合预期时，用 `--junit {auto,4,5}` 和 `--java {auto,8,11,17,21}` 强制指定。
 
 > **度量正确的东西。** 编译通过只证明文件语法正确 —— 一个不含 `@Test` 的空类也能编译通过。因此 TestGen Agent 把 **mutation score（变异得分）** 作为头号指标：注入的故障中，生成的测试实际抓住了多大比例。这是 PiTest 测出来的。
 
-> **验证状态：** 完整流水线已在随仓库附带的 `examples/demo-project` 上**端到端跑通并验证**（见[端到端验证](#端到端验证)）。设计上会自动识别 Maven、Ant、Gradle 和手工项目布局；但目前只有 **Maven** 路径在 demo 验证中实际跑过。
+> **验证状态：** 完整流水线已在两个随仓库附带的示例上**端到端跑通并验证**——`examples/demo-project`（JUnit 4 / Java 8）和 `examples/demo-project-junit5`（JUnit 5 / Java 17），见[端到端验证](#端到端验证)。设计上会自动识别 Maven、Ant、Gradle 和手工项目布局；但目前只有 **Maven** 路径在 demo 验证中实际跑过。
 
 ## 产出什么
 
@@ -84,6 +86,21 @@ mutation score 才是真正重要的数字：**能抓住 75–84% 注入的故�
 - demo 运行都带了 `--no-coverage`，所以覆盖率引导补测（Phase B）**没有被执行**；它已实现，并在底层的 Defects4J 实验中跑过。
 
 运行产物（report.json / report.csv / surefire 结果 / 生成的测试）都在仓库里可供检查。复现步骤见 [demo README](examples/demo-project/README.md)。
+
+### JUnit 5 / Java 17 的运行
+
+`examples/demo-project-junit5` 用**同样的四个类**配了一个 JUnit 5 的 pom，用来验证 agent 跟随项目而不是强加框架。不加任何参数，自动探测出 **Java 17 / JUnit 5**，一次运行的结果：
+
+| 指标 | 结果 |
+|--------|------|
+| 生成的测试文件 | 40 |
+| 编译通过率 | 40 / 40（100%） |
+| surefire 实际执行 | 43 |
+| **Mutation score（PiTest）** | **66 / 80（82.5%）** |
+| 断言密度 | 2.30 / 每个 `@Test` 方法 |
+| 空测试类 | 1 |
+
+重点在对比：同一个 agent 跑两个项目，对 Java 8 那个产出 `org.junit.Assert` 风格，对 Java 17 那个产出 `org.junit.jupiter.api.Assertions`。详见 [JUnit 5 demo README](examples/demo-project-junit5/README.md) —— 包括它**还没做对**的那一个惯用法（`assertThrows` 从未被触发，因为异常目标只覆盖声明式受检异常）。
 
 ## 快速开始
 
@@ -154,6 +171,12 @@ Method filtering:
   --skip-private                  跳过私有方法
   --include-constructors          把构造函数也作为目标
   --target-types [NORMAL ...]     要生成的目标类型（默认全部）
+
+目标框架：
+  --junit {auto,4,5}              生成给哪个 JUnit 版本（默认 auto = 跟随被测
+                                  项目的测试 classpath）
+  --java {auto,8,11,17,21}        生成测试的 Java 级别（默认 auto = 跟随被测
+                                  项目的构建文件）
 
 Repair:
   --max-repair N                  最大编译修复轮数（默认 3）
@@ -295,14 +318,14 @@ cd examples/demo-project && mvn test   # 重跑需加 `clean`
 
 agent 使用两套 prompt 模板，改编自最初的作业：
 
-- **`generate_system.txt`** / **`generate_user.txt`** —— 用于初次生成测试。定义了角色（资深 Java 测试开发者）、严格的 import 限制、JUnit 4 规则、反射规则和输出格式。
+- **`generate_system.txt`** / **`generate_user.txt`** —— 用于初次生成测试。定义了角色（资深 Java 测试开发者）、严格的 import 限制、按 JUnit 版本切换的语法与异常规则、反射规则和输出格式。
 - **`repair_system.txt`** / **`repair_user.txt`** —— 用于编译修复。聚焦于解读报错、修 import、处理反射、保持测试结构不变。
 
 从源码中提取的分支条件取代了早期方案使用的 Jimple IR，既省掉了 SootUp，又保留了 LLM 对控制流的可见性。
 
 ### 项目结构
 
-约 3,800 行 Python，19 个模块 —— 全部在仓库根目录。
+约 4,500 行 Python，20 个模块 —— 全部在仓库根目录。
 
 ```
 agent.py             566  TestGeneratorAgent —— 8 阶段编排器
@@ -310,21 +333,23 @@ repair_loop.py       413  编译修复循环 + 覆盖率补测
 report_generator.py  401  Markdown / JSON / CSV / 控制台输出
 java_analyzer.py     312  项目发现、构建工具检测、classpath
 main.py              277  CLI 入口
-quality_analyzer.py  251  空测试类、断言密度、PiTest 解析
+quality_analyzer.py  258  空测试类、断言密度、PiTest 解析
 coverage_analyzer.py 235  JaCoCo XML 解析
-compiler.py          222  javac 调用 + 项目构建
-target_generator.py  212  Normal / Boundary / Exception / Path / Reflection 目标
+compiler.py          242  javac 调用 + 项目构建
+target_generator.py  231  Normal / Boundary / Exception / Path / Reflection 目标
+target_profile.py    414  探测被测项目的 Java / JUnit 版本
+method_extractor.py  199  基于 javalang 的方法提取
 test_writer.py       186  测试格式化、命名、文件读写
-method_extractor.py  166  基于 javalang 的方法提取
+prompt_manager.py    165  Prompt 模板加载与替换
 llm_client.py        104  统一的 OpenAI + Anthropic/DeepSeek 客户端
+config.py             96  AgentConfig 数据类
 skill_entry.py        96  旧版 CLI 包装（见上方 skill 说明）
 runlog.py             93  运行日志（.testgen-agent/run.log）
-config.py             87  AgentConfig 数据类
-prompt_manager.py     80  Prompt 模板加载与替换
 checkpoint.py         60  JSONL 续跑支持
 extractor/                可插拔的提取后端（javalang，可选 SootUp）
 prompts/                  四个 prompt 模板（generate/repair × system/user）
-examples/demo-project/    端到端验证用的示例（Maven、Java 8、4 个类）
+examples/demo-project/        端到端验证用的示例（JUnit 4 + Java 8）
+examples/demo-project-junit5/ 同样的类，JUnit 5 + Java 17（验证框架探测）
 references/               Skill 定义草稿
 ```
 
@@ -478,7 +503,7 @@ Claude 会读取 skill、运行流水线、读取 `report.json` 并汇报 ——
 
 ## 环境要求
 
-- **Java 8+**（用于编译生成的测试 —— 被测项目需以 Java 8 为目标）
+- **Java 8+**（用于编译生成的测试 —— 生成的测试匹配目标项目声明的级别，自动探测，下限为 Java 8）
 - **Python 3.10+**
 - **Javac** —— 需在 `PATH` 上，或设置了 `JAVA_HOME`
 - **Maven**（可选）—— classpath 解析、覆盖率（Phase B）和 mutation 分析（Phase 8）需要。mutation 分析还额外需要 **JDK 11+** 才能运行 PiTest。
@@ -488,12 +513,14 @@ Claude 会读取 skill、运行流水线、读取 `report.json` 并汇报 ——
 
 ## 已知边界
 
-- 生成的测试是 **JUnit 4**、兼容 Java 8 —— 不支持 JUnit 5、不支持 lambda、不使用 Java 8 以上的 API
+- 生成的测试**匹配项目自身的框架**（JUnit 4 或 5）和编译级别，两者都自动探测。JUnit 4 项目下意味着不用 lambda、不用 `assertThrows`；JUnit 5 下 lambda 是允许且推荐的。下限是 Java 8。
+- **异常目标只为*声明式受检异常*生成**（签名里的 `throws`）。方法体里抛出的非受检异常（`IllegalArgumentException`、`NullPointerException`）不会产生 `[Exception]` 目标，因此 LLM 倾向用 `try/catch` 而不是 `assertThrows` 来断言它。检测方法体里的 `throw new X(...)` 是解决这个问题的后续工作。
 - **不支持 mocking。** prompt 里禁止了 Mockito，因此有依赖注入的类（service、repository）通常生成不出可运行的测试。这是面对真实项目时最大的缺口。
 - 生成的测试文件命名规则是 `ClassName_method_ParamType_Test_Type_N`。Maven 项目必须配置 surefire 的 `<includes>`（例如 `**/*_Test_*.java`）才会执行它们 —— 见 `examples/demo-project/pom.xml`。
 - 分支条件是从**源码**提取的，而不是 Jimple IR（可能漏掉编译器生成的分支）
 - Phase B（覆盖率补测）要求目标项目已配置 **Maven + JaCoCo**
 - mutation 分析（Phase 8）需要 **Maven** 和 **JDK 11+** 才能运行 PiTest —— 它会按需解析 `pitest-maven`，版本可用 `--pitest-version` 固定。PiTest 还要求测试全绿才肯运行；失败的测试类会被自动排除并在报告中列出。
+- **JUnit 5 项目上跑 mutation 分析，还要求目标 pom 声明 `pitest-junit5-plugin`** —— 没有它 PiTest 看不到 JUnit 5 测试，而这个依赖无法通过命令行传入。agent 会检测其缺失，明确提示后跳过，而不是丢一个看不懂的 Maven 报错。见 `examples/demo-project-junit5/pom.xml`。
 - 编译通过但是空类的测试会被报告出来，但**不会**被自动重新生成
 - 含数百个方法的大型项目可能耗时较久、消耗较多 API token（目前是单线程）
 

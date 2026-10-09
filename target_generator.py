@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from method_extractor import MethodInfo
+from target_profile import TargetProfile
 
 
 class TargetGenerator:
@@ -17,11 +18,20 @@ class TargetGenerator:
         self,
         target_types: Optional[List[str]] = None,
         max_tests_per_method: int = 10,
+        profile: Optional[TargetProfile] = None,
     ):
         self.target_types = target_types or [
             "normal", "boundary", "exception", "path", "reflection"
         ]
         self.max_tests_per_method = max_tests_per_method
+        # Shared, populated in place during Phase 1 — read at use time so the
+        # detected version applies even though this object is built earlier.
+        self.profile = profile or TargetProfile()
+
+    @property
+    def _junit(self) -> str:
+        """Framework name, as it appears in the target description text."""
+        return f"JUnit {self.profile.junit_version}"
 
     def generate_targets(self, method: MethodInfo) -> List[str]:
         """Return a list of target description strings for this method."""
@@ -49,7 +59,8 @@ class TargetGenerator:
         """One normal-case target."""
         param_hints = self._param_value_hints(method, "normal")
         return [
-            f"[Normal] Write a JUnit 4 test with representative valid inputs. "
+            f"[Normal] Write a {self._junit} test with representative valid "
+            f"inputs. "
             f"Use typical values: {param_hints}. "
             f"Assert the expected return value or side effect."
         ]
@@ -138,11 +149,20 @@ class TargetGenerator:
         targets: List[str] = []
         for ex in method.throws_exceptions:
             ex_simple = ex.split(".")[-1]
+            if self.profile.junit_version == 5:
+                how = (
+                    f"Use assertThrows({ex_simple}.class, () -> {{ ... }}) "
+                    f"with a lambda. Do NOT use @Test(expected=...)."
+                )
+            else:
+                how = (
+                    f"Use try-catch with fail() if no exception is thrown, "
+                    f"or @Test(expected={ex_simple}.class). "
+                    f"Do NOT use assertThrows."
+                )
             targets.append(
-                f"[Exception] Write a JUnit 4 test that triggers "
-                f"{ex_simple}. Use try-catch with fail() if no exception "
-                f"is thrown, or @Test(expected={ex_simple}.class). "
-                f"Do NOT use assertThrows."
+                f"[Exception] Write a {self._junit} test that triggers "
+                f"{ex_simple}. {how}"
             )
         return targets
 
@@ -152,21 +172,21 @@ class TargetGenerator:
         """One target per branch condition, asking to cover each path."""
         if not method.branch_conditions:
             return [
-                "[Path] Write a JUnit 4 test that achieves "
-                "statement coverage for the method."
+                f"[Path] Write a {self._junit} test that achieves "
+                f"statement coverage for the method."
             ]
         targets: List[str] = []
         for i, cond in enumerate(method.branch_conditions):
             # Extract the condition inside parentheses
             cond_clean = cond.strip()
             targets.append(
-                f"[Path] Write a JUnit 4 test that exercises the branch "
+                f"[Path] Write a {self._junit} test that exercises the branch "
                 f"where condition holds: {cond_clean}. "
                 f"Provide inputs that make this condition true. "
                 f"Assert the expected outcome."
             )
             targets.append(
-                f"[Path] Write a JUnit 4 test that exercises the branch "
+                f"[Path] Write a {self._junit} test that exercises the branch "
                 f"where condition is FALSE: {cond_clean}. "
                 f"Provide inputs that make this condition false. "
                 f"Assert the expected outcome."
@@ -175,12 +195,11 @@ class TargetGenerator:
 
     # ── Reflection target ─────────────────────────────────────
 
-    @staticmethod
-    def _reflection_target(method: MethodInfo) -> str:
+    def _reflection_target(self, method: MethodInfo) -> str:
         param_types = ", ".join(method.parameter_types)
         return (
             f"[Reflection] The focal method is private. "
-            f"Write a JUnit 4 test that invokes "
+            f"Write a {self._junit} test that invokes "
             f"{method.class_name}.{method.method_name}({param_types}) "
             f"using Java reflection: getDeclaredMethod, setAccessible(true), "
             f"invoke. Handle InvocationTargetException correctly."

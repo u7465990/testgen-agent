@@ -21,14 +21,20 @@ from javalang.tree import (
 
 from extractor.base import ExtractorBackend
 from java_analyzer import SourceFile
-from method_extractor import ALWAYS_ALLOWED, MethodInfo
+from method_extractor import MethodInfo, always_allowed
+from target_profile import TargetProfile
 
 
 class JavalangBackend(ExtractorBackend):
     """Pure-Python extraction using javalang AST parser."""
 
-    def __init__(self, project_name: str = ""):
+    def __init__(
+        self, project_name: str = "", profile: Optional[TargetProfile] = None
+    ):
         self._project_name = project_name
+        # Shared, populated in place during Phase 1; read at extract time so a
+        # backend built before detection still picks up the detected version.
+        self._profile = profile or TargetProfile()
 
     @property
     def name(self) -> str:
@@ -118,7 +124,8 @@ class JavalangBackend(ExtractorBackend):
         sig = f"{return_type} {method_name}({', '.join(param_types)})"
 
         allowed = self._compute_allowed_imports(
-            file_imports, pkg, cls, param_types, throws
+            file_imports, pkg, cls, param_types, throws,
+            self._profile.junit_version,
         )
         branches = self._extract_branch_conditions(body or source_code)
 
@@ -285,9 +292,10 @@ class JavalangBackend(ExtractorBackend):
         class_name: str,
         param_types: List[str],
         throws: List[str],
+        junit_version: int = 4,
     ) -> List[str]:
         allowed: List[str] = []
-        for imp in sorted(ALWAYS_ALLOWED):
+        for imp in sorted(always_allowed(junit_version)):
             allowed.append(imp)
         if package_name:
             allowed.append(f"{package_name}.{class_name}")
@@ -302,7 +310,16 @@ class JavalangBackend(ExtractorBackend):
                 allowed.append(ut)
         for imp in file_imports:
             imp_clean = imp.replace("import ", "").replace(";", "").strip()
-            if imp_clean.startswith(("java.", "javax.", "org.junit.")):
-                if imp_clean not in allowed:
-                    allowed.append(imp_clean)
+            if not imp_clean.startswith(("java.", "javax.", "org.junit.")):
+                continue
+            # Do not carry the *other* JUnit's imports across. A project
+            # mid-migration has both on disk, and an allowed-list entry for
+            # org.junit.Assert would invite the LLM to write JUnit 4 assertions
+            # into a JUnit 5 test (and vice versa for a forced --junit 4).
+            if imp_clean.startswith("org.junit."):
+                is_jupiter = imp_clean.startswith("org.junit.jupiter.")
+                if (junit_version == 5) != is_jupiter:
+                    continue
+            if imp_clean not in allowed:
+                allowed.append(imp_clean)
         return sorted(set(allowed))

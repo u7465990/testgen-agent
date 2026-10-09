@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.demo</groupId>
+  <artifactId>demo-project-junit5</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <name>demo-project-junit5</name>
+  <description>The same utility library as demo-project, on JUnit 5 + Java 17 — used
+    to verify that testgen-agent follows the project's own test framework and
+    compiles at the project's own Java level.</description>
+
+  <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <!-- JUnit 5. Note the groupId differs from JUnit 4's junit:junit — this is
+         what testgen-agent detects on the classpath to pick the target
+         framework (see target_profile.py). -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Surefire 2.x can run the JUnit Platform, but 3.x is what JUnit 5
+           projects actually use. The includes match testgen-agent's generated
+           file naming: ClassName_method_ParamType_Test_Type_N. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <includes>
+            <include>**/*_Test_*.java</include>
+            <include>**Test.java</include>
+          </includes>
+        </configuration>
+      </plugin>
+
+      <!-- Declared here (not injected on the command line) because PiTest needs
+           pitest-junit5-plugin on its own plugin classpath to see JUnit 5
+           tests, and that dependency cannot be passed as a -D property. This
+           is the case testgen-agent now detects and reports clearly instead of
+           letting Maven fail opaquely. -->
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>1.15.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.1</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+    </plugins>
+  </build>
+</project>
