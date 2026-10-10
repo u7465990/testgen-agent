@@ -36,6 +36,7 @@ class TargetGenerator:
     def generate_targets(self, method: MethodInfo) -> List[str]:
         """Return a list of target description strings for this method."""
         targets: List[str] = []
+        mock_targets: List[str] = []
 
         for tt in self.target_types:
             tt_lower = tt.lower()
@@ -49,9 +50,17 @@ class TargetGenerator:
                 targets.extend(self._path_targets(method))
             elif tt_lower == "reflection" and method.is_private:
                 targets.append(self._reflection_target(method))
+            elif tt_lower == "mock":
+                mock_targets.extend(self._mock_targets(method))
 
-        # Cap the total
-        return targets[: self.max_tests_per_method]
+        # Mock targets are prepended and exempt from the cap. Two reasons: a
+        # class with collaborators is exactly the case the cap would starve
+        # (boundary/path targets fill it first), and a stable low index keeps
+        # the counter-derived class names — and therefore the resume
+        # checkpoint — deterministic across runs. On a project with no
+        # collaborators `mock_targets` is empty, so this is byte-identical to
+        # the old `targets[:cap]`.
+        return mock_targets + targets[: self.max_tests_per_method]
 
     # ── Normal targets ────────────────────────────────────────
 
@@ -204,6 +213,109 @@ class TargetGenerator:
             f"using Java reflection: getDeclaredMethod, setAccessible(true), "
             f"invoke. Handle InvocationTargetException correctly."
         )
+
+    # ── Mock targets ──────────────────────────────────────────
+
+    def _mock_targets(self, method: MethodInfo) -> List[str]:
+        """One Mockito target for a class whose dependencies can be mocked.
+
+        Returns [] unless the class has resolvable, mockable collaborators —
+        which requires project source (see collaborator_resolver.py). Mocking a
+        dependency the test cannot instantiate produces code that does not
+        compile, which is worse than not trying.
+        """
+        if not self.profile.mockito_available or not method.collaborators:
+            return []
+
+        lines = [
+            f"[Mock] Write a {self._junit} test for "
+            f"{method.class_name}.{method.method_name} that mocks this class's "
+            f"injected dependencies with Mockito.",
+            "Collaborators to mock:",
+        ]
+        for c in method.collaborators:
+            lines.append(f"  - {c.type_name} ({c.fqn}) [{c.kind}], injected "
+                         f"via {c.injection}.")
+            if c.method_signatures:
+                lines.append("    Public API available to stub:")
+                for sig in c.method_signatures:
+                    lines.append(f"      {sig}")
+            else:
+                lines.append("    (no public methods to stub)")
+
+        lines.extend(self._mock_ctor_line(method))
+        lines.append("Rules:")
+        lines.append(f"  - Mock ONLY the collaborators listed above. A "
+                     f"{self._junit} test that mocks nothing when it should is "
+                     f"worse than no test.")
+        lines.append("  - Do NOT mock java.* types (String, List, ...) or the "
+                     "class under test itself.")
+        lines.append("  - Write real stubs, not bare mocks: use "
+                     "when(...).thenReturn(...) so the branches that depend on "
+                     "a collaborator's result are actually reached.")
+        lines.append("  - Use argument matchers (any(), anyString(), eq(...)) "
+                     "where the exact value is not what is being asserted.")
+        lines.append(f"  - Assert on the outcome of {method.class_name} "
+                     f"(return value, thrown exception, or a verify(...) on "
+                     f"the collaborator), not on what the mock returned.")
+        lines.extend(self._mock_idiom_lines())
+        return ["\n".join(lines)]
+
+    def _mock_ctor_line(self, method: MethodInfo) -> List[str]:
+        ctor_params = ""
+        for c in method.constructors:
+            params = ", ".join(
+                f"{t} {n}" for t, n in zip(c.parameter_types, c.parameter_names)
+            )
+            ctor_params = f"{c.name}({params})"
+            break
+        if not ctor_params:
+            return ["Construct the class under test with its default "
+                    "constructor, injecting the mocks into its fields."]
+        return [f"Constructor under test: {ctor_params}"]
+
+    def _mock_idiom_lines(self) -> List[str]:
+        """The Mockito idiom to use, in the target text rather than the prompt.
+
+        Two deliberate choices, both from observed failures:
+
+        Explicit `mock(...)` over `@Mock`/`@InjectMocks` annotations. A missing
+        `@RunWith`/`@ExtendWith` is not a compile error — the annotated fields
+        simply stay null and every test fails at runtime with an NPE. The
+        repair loop only recompiles, so it cannot recover from that. The
+        explicit form has no annotation to forget, and needs nothing beyond
+        `mockito-core`: no runner, no extension, and no strictness setting
+        (strict stubs throw `UnnecessaryStubbingException` on the over-stubbing
+        LLM-written tests do routinely, and one red test stops PiTest from
+        running at all, costing the whole mutation phase).
+
+        The idiom lives in the target text because TargetGenerator reads the
+        shared, correctly-detected profile; the system-prompt path has been the
+        source of a framework mix-up before (see CLAUDE.md).
+        """
+        lines = [
+            "Use this exact idiom:",
+            "  - Create each collaborator with "
+            "Mockito.mock(CollaboratorType.class).",
+            "  - Pass them to the constructor under test (or assign them to "
+            "the class's fields) yourself.",
+            "  - Do NOT use @Mock / @InjectMocks, and do NOT rely on a Mockito "
+            "runner or extension — the annotation form fails silently if the "
+            "runner is missing.",
+        ]
+        if self.profile.junit_version == 5:
+            lines.append(
+                "  - Import Mockito statically or qualify calls as "
+                "Mockito.when(...) / Mockito.verify(...); use "
+                "org.mockito.ArgumentMatchers for any() / eq()."
+            )
+        else:
+            lines.append(
+                "  - Import org.mockito.Mockito and call "
+                "Mockito.when(...) / Mockito.verify(...); use "
+                "org.mockito.ArgumentMatchers for any() / eq()."
+            )
+        return lines
 
     # ── Value hints for normal targets ────────────────────────
 

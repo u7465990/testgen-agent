@@ -213,13 +213,58 @@ class JavaProjectAnalyzer:
 
         return separator.join(resolved)
 
+    def _pom_is_newer_than(self, cp_file: Path) -> bool:
+        """True when a build file has been touched since the cache was written.
+
+        Module poms count too: in a multi-module build a dependency usually
+        lands in a module's pom, which does not change the root pom's mtime.
+        """
+        try:
+            cache_mtime = cp_file.stat().st_mtime
+        except OSError:
+            return True
+        candidates = [self.project_path / "pom.xml"]
+        if self.project_path.is_dir():
+            try:
+                candidates.extend(
+                    d / "pom.xml" for d in self.project_path.iterdir()
+                    if d.is_dir()
+                )
+            except OSError:
+                pass
+        for pom in candidates:
+            try:
+                if pom.is_file() and pom.stat().st_mtime > cache_mtime:
+                    return True
+            except OSError:
+                continue
+        return False
+
+    def invalidate_classpath_cache(self) -> None:
+        """Drop the on-disk classpath cache so the next resolve re-runs Maven.
+
+        Used after the agent modifies a pom: relying on mtime alone is fragile
+        (coarse timestamp resolution, same-second writes).
+        """
+        try:
+            (self.project_path / "target/classpath.txt").unlink(missing_ok=True)
+        except OSError:
+            pass
+
     def _resolve_maven_classpath(self) -> List[str]:
         """Run `mvn dependency:build-classpath` and return entries."""
         cp_file = self.project_path / "target/classpath.txt"
         if not cp_file.parent.is_dir():
             cp_file.parent.mkdir(parents=True, exist_ok=True)
 
-        if not cp_file.is_file():
+        # Re-resolve when the build file is newer than the cache. Without this
+        # the cached file is read forever, so a dependency added to the pom
+        # never reaches `javac` — while `mvn test` and PiTest, which read the
+        # pom directly, do see it. That asymmetry makes a fixed project look
+        # like a broken heuristic.
+        cache_is_fresh = cp_file.is_file() and not self._pom_is_newer_than(cp_file)
+
+        if not cache_is_fresh:
             mvn = self._find_mvn()
             if not mvn:
                 return []

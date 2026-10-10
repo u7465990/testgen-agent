@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from javalang import parse
 from javalang.tree import (
@@ -21,8 +22,31 @@ from javalang.tree import (
 
 from extractor.base import ExtractorBackend
 from java_analyzer import SourceFile
-from method_extractor import MethodInfo, always_allowed
+from method_extractor import (
+    Collaborator,
+    ConstructorInfo,
+    FieldInfo,
+    MethodInfo,
+    always_allowed,
+    mockito_allowed,
+)
 from target_profile import TargetProfile
+
+
+@dataclass
+class _ClassShape:
+    """One type's fields and constructors, structured, before rendering."""
+
+    name: str
+    is_interface: bool = False
+    is_abstract: bool = False
+    fields: List[FieldInfo] = field(default_factory=list)
+    constructors: List[ConstructorInfo] = field(default_factory=list)
+
+    @property
+    def is_mockable_kind(self) -> bool:
+        """Interfaces and abstract classes are the mockable shape."""
+        return self.is_interface or self.is_abstract
 
 
 class JavalangBackend(ExtractorBackend):
@@ -35,6 +59,12 @@ class JavalangBackend(ExtractorBackend):
         # Shared, populated in place during Phase 1; read at extract time so a
         # backend built before detection still picks up the detected version.
         self._profile = profile or TargetProfile()
+        # Set by the agent once it has discovered the project's source files;
+        # without it no collaborator type name can be resolved to real source.
+        self._source_index = None
+
+    def set_source_index(self, source_index) -> None:
+        self._source_index = source_index
 
     @property
     def name(self) -> str:
@@ -61,13 +91,15 @@ class JavalangBackend(ExtractorBackend):
             return []
 
         file_imports = self._collect_imports(tree)
-        class_context = self._build_class_context(tree, source_text)
+        shapes = self._collect_class_shapes(tree)
 
         methods: List[MethodInfo] = []
         for path, node in tree:
             if isinstance(node, (MethodDeclaration, ConstructorDeclaration)):
+                shape = shapes.get(JavalangBackend._owning_type_name(path) or "")
                 mi = self._extract_one(
-                    node, source_file, source_text, file_imports, class_context
+                    node, source_file, source_text, file_imports,
+                    self._render_class_context(shape), shape,
                 )
                 if mi:
                     methods.append(mi)
@@ -82,6 +114,7 @@ class JavalangBackend(ExtractorBackend):
         source_text: str,
         file_imports: List[str],
         class_context: str,
+        shape: Optional["_ClassShape"] = None,
     ) -> Optional[MethodInfo]:
         is_constr = isinstance(node, ConstructorDeclaration)
         method_name = (
@@ -125,7 +158,7 @@ class JavalangBackend(ExtractorBackend):
 
         allowed = self._compute_allowed_imports(
             file_imports, pkg, cls, param_types, throws,
-            self._profile.junit_version,
+            self._profile.junit_version, self._profile.mockito_available,
         )
         branches = self._extract_branch_conditions(body or source_code)
 
@@ -149,6 +182,9 @@ class JavalangBackend(ExtractorBackend):
             source_code=source_code,
             method_body=body or "",
             class_context=class_context,
+            fields=list(shape.fields) if shape else [],
+            constructors=list(shape.constructors) if shape else [],
+            collaborators=self._resolve_collaborators(shape, pkg, file_imports),
             imports=file_imports,
             allowed_imports=allowed,
             branch_conditions=branches,
@@ -268,22 +304,120 @@ class JavalangBackend(ExtractorBackend):
         return conditions
 
     @staticmethod
-    def _build_class_context(tree: CompilationUnit, source_text: str) -> str:
-        parts: List[str] = []
+    def _owning_type_name(path) -> Optional[str]:
+        """The innermost class/interface a node at `path` belongs to."""
+        owner = next(
+            (n for n in reversed(path)
+             if isinstance(n, (ClassDeclaration, InterfaceDeclaration))),
+            None,
+        )
+        return owner.name if owner is not None else None
+
+    @staticmethod
+    def _collect_class_shapes(
+        tree: CompilationUnit,
+    ) -> Dict[str, "_ClassShape"]:
+        """Group each type's fields and constructors under its own name.
+
+        The previous implementation walked the whole tree and appended every
+        field and constructor into one flat list, so a file holding two classes
+        gave each of them the other's members with no way to tell them apart.
+        Ownership is recoverable from the parse `path`, so attribute properly
+        here — this is what lets mock generation ask "what does *this* class
+        take as dependencies".
+
+        Order within a class is the source traversal order, deliberately: the
+        rendered prompt string has to stay identical for single-class files.
+        """
+        shapes: Dict[str, "_ClassShape"] = {}
         for path, node in tree:
-            if isinstance(node, FieldDeclaration):
-                for decl in node.declarators:
-                    type_name = JavalangBackend._type_name(node.type)
-                    parts.append(f"  {type_name} {decl.name};")
-            elif isinstance(node, ConstructorDeclaration):
-                params = ", ".join(
-                    JavalangBackend._type_name(p.type) + " " + p.name
-                    for p in (node.parameters or [])
+            if not isinstance(
+                node, (FieldDeclaration, ConstructorDeclaration)
+            ):
+                continue
+            owner_name = JavalangBackend._owning_type_name(path)
+            if not owner_name:
+                continue
+            if owner_name not in shapes:
+                owner = next(
+                    (n for n in reversed(path)
+                     if isinstance(n, (ClassDeclaration, InterfaceDeclaration))),
+                    None,
                 )
-                parts.append(f"  {node.name}({params});")
+                shapes[owner_name] = _ClassShape(
+                    name=owner_name,
+                    is_interface=isinstance(owner, InterfaceDeclaration),
+                    is_abstract="abstract" in (
+                        getattr(owner, "modifiers", None) or set()
+                    ),
+                )
+            shape = shapes[owner_name]
+
+            if isinstance(node, FieldDeclaration):
+                type_name = JavalangBackend._type_name(node.type)
+                for decl in node.declarators:
+                    shape.fields.append(FieldInfo(
+                        type_name=type_name,
+                        name=decl.name,
+                        modifiers=sorted(getattr(node, "modifiers", None) or []),
+                    ))
+            else:
+                shape.constructors.append(ConstructorInfo(
+                    name=node.name,
+                    parameter_types=[
+                        JavalangBackend._type_name(p.type)
+                        for p in (node.parameters or [])
+                    ],
+                    parameter_names=[
+                        p.name for p in (node.parameters or [])
+                    ],
+                    modifiers=sorted(
+                        getattr(node, "modifiers", None) or []
+                    ),
+                ))
+        return shapes
+
+    @staticmethod
+    def _render_class_context(shape: Optional["_ClassShape"]) -> str:
+        """Render a class shape into the prompt's `class context:` string.
+
+        Kept byte-identical to the original for single-class files: same
+        header, same two-space indent, same field-then-constructor order, same
+        omission of modifiers.
+        """
+        if shape is None:
+            return ""
+        parts: List[str] = []
+        for f in shape.fields:
+            parts.append(f"  {f.type_name} {f.name};")
+        for c in shape.constructors:
+            params = ", ".join(
+                f"{t} {n}"
+                for t, n in zip(c.parameter_types, c.parameter_names)
+            )
+            parts.append(f"  {c.name}({params});")
         if not parts:
             return ""
         return "class context:\n" + "\n".join(parts)
+
+    def _resolve_collaborators(
+        self,
+        shape: Optional["_ClassShape"],
+        package_name: str,
+        file_imports: List[str],
+    ) -> List[Collaborator]:
+        """Injected dependencies of the class under test, ready to mock.
+
+        Empty unless a SourceIndex has been attached (see
+        collaborator_resolver.py) — without project sources there is nothing to
+        resolve a type name against, and guessing would produce mock targets
+        that cannot compile.
+        """
+        if shape is None or self._source_index is None:
+            return []
+        return self._source_index.find_collaborators(
+            shape, package_name, file_imports
+        )
 
     @staticmethod
     def _compute_allowed_imports(
@@ -293,10 +427,16 @@ class JavalangBackend(ExtractorBackend):
         param_types: List[str],
         throws: List[str],
         junit_version: int = 4,
+        mockito_available: bool = False,
     ) -> List[str]:
         allowed: List[str] = []
         for imp in sorted(always_allowed(junit_version)):
             allowed.append(imp)
+        # Gated on availability, not on whether the class has collaborators:
+        # an unresolvable import is worse than a missing one.
+        if mockito_available:
+            for imp in sorted(mockito_allowed(junit_version)):
+                allowed.append(imp)
         if package_name:
             allowed.append(f"{package_name}.{class_name}")
             allowed.append(f"{package_name}.{class_name}.*")

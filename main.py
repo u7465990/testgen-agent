@@ -28,6 +28,7 @@ def build_config(args: argparse.Namespace) -> AgentConfig:
         extraction_mode=args.extraction_mode,
         junit_version=args.junit,
         java_version=args.java,
+        add_mock_deps=args.add_mock_deps,
         llm_provider=args.provider,
         llm_model=args.model,
         api_key=args.api_key,
@@ -210,6 +211,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
              "value is passed to javac as -source/-target",
     )
 
+    parser.add_argument(
+        "--add-mock-deps", action="store_true",
+        help="Write the Mockito test dependency into the target project's "
+             "pom.xml so mock tests can compile. Off by default: the agent "
+             "otherwise never modifies the project it is pointed at. "
+             "Idempotent, and the original pom is backed up once.",
+    )
+
     # LLM options
     parser.add_argument(
         "--provider", default="openai",
@@ -254,7 +263,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--target-types", nargs="*",
-        default=["normal", "boundary", "exception", "path", "reflection"],
+        default=["normal", "boundary", "exception", "path", "reflection",
+                 "mock"],
         help="Target types to generate (default: all)",
     )
     parser.add_argument(

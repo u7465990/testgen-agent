@@ -20,7 +20,14 @@ from repair_loop import RepairLoop, TestFile
 from quality_analyzer import TestQualityAnalyzer, MutationAnalyzer
 from report_generator import AgentReport, MethodReport, ReportGenerator
 from runlog import setup_logging, get_logger, log_path_for
-from target_profile import TargetProfile, detect_into, pom_declares
+from target_profile import (
+    TargetProfile,
+    detect_into,
+    detect_mockito,
+    pom_declares,
+)
+from collaborator_resolver import SourceIndex
+from mock_deps import inject_mockito_dependency
 
 logger = get_logger(__name__)
 
@@ -160,6 +167,11 @@ class TestGeneratorAgent:
                   "build the project and re-run.")
             report.errors.append(f"Project build failed: {build_message}")
 
+        # Give the extractor the project's source index so collaborator type
+        # names can be resolved to real source. Without it every class reports
+        # no collaborators and no mock targets are generated.
+        self.extractor.set_source_index(SourceIndex(sources))
+
         # Detect the target framework now: it needs the resolved classpath,
         # which only exists after the build above. Doing it here rather than up
         # front is what lets `auto` follow the project instead of guessing.
@@ -171,12 +183,22 @@ class TestGeneratorAgent:
             configured_junit=self.config.junit_version,
             javac_path=self.compiler.find_javac(),
         )
+
+        # Opt-in only, and after detection because the coordinates depend on the
+        # detected JUnit and Java versions (Mockito 5 needs Java 11+).
+        if self.config.add_mock_deps and not self.profile.mockito_available:
+            self._add_mock_deps(report)
+
         report.target_profile = self.profile.to_dict()
         print(f"  [Target] {self.profile.describe()}")
         logger.info("target profile: %s", self.profile.describe())
+        if self.profile.mockito_available:
+            print(f"  [Target] Mockito available ({self.profile.mockito_source}"
+                  f"{', ' + self.profile.mockito_version if self.profile.mockito_version else ''})")
         for warning in self.profile.warnings:
             print(f"  [Target] WARNING: {warning}")
             report.errors.append(warning)
+        self._warn_if_mockito_missing(report)
 
         # ── Phases 2-4: streaming filter → target → generate ─
         # One source file is processed at a time. The global counter stays
@@ -402,6 +424,73 @@ class TestGeneratorAgent:
             logger.info("run errors: %s", report.errors)
 
         return report
+
+    def _add_mock_deps(self, report: AgentReport) -> None:
+        """Declare Mockito in the target pom (`--add-mock-deps` only).
+
+        The dependency has to be in the pom rather than bolted onto our javac
+        invocation: `mvn test` — the check that decides whether the tests
+        actually work — reads the pom, and a dependency only we can see would
+        produce a suite that compiles for us and fails for the user.
+        """
+        if self.analyzer.detect_build_tool() != "maven":
+            message = (
+                "--add-mock-deps only supports Maven projects; declare "
+                "Mockito in your build file to enable mock targets"
+            )
+            print(f"  [Mock] {message}")
+            report.errors.append(message)
+            return
+
+        pom = self.project_path / "pom.xml"
+        changed, message = inject_mockito_dependency(
+            pom, self.profile.junit_version, self.profile.java_version
+        )
+        print(f"  [Mock] pom.xml: {message}")
+        logger.info("mock deps: changed=%s msg=%s", changed, message)
+        if not changed:
+            return
+
+        # The classpath was resolved before the pom changed, so the cache is
+        # now stale by construction. Drop it explicitly rather than trusting
+        # mtime — Windows timestamp resolution is coarse enough to miss a
+        # same-second edit.
+        self.analyzer.invalidate_classpath_cache()
+        self.compiler._classpath = None
+        detect_mockito(
+            self.profile, self.project_path, self.compiler.resolve_classpath()
+        )
+
+    def _warn_if_mockito_missing(self, report: AgentReport) -> None:
+        """Say so when the project has mockable collaborators but no Mockito.
+
+        Checked on the extracted methods rather than the class shapes, because
+        "this project has something to mock and no way to mock it" is only
+        actionable if it names how many targets were dropped.
+        """
+        if self.profile.mockito_available:
+            return
+        pending = sum(1 for m in self._methods_with_collaborators())
+        if not pending:
+            return
+        message = (
+            f"{pending} method(s) have injectable collaborators but Mockito is "
+            f"not on the test classpath, so no [Mock] targets were generated. "
+            f"Re-run with --add-mock-deps to declare it in the pom, or add it "
+            f"yourself."
+        )
+        print(f"  [Mock] {message}")
+        logger.warning("mockito missing: %s", message)
+        report.errors.append(message)
+
+    def _methods_with_collaborators(self) -> List[MethodInfo]:
+        """Methods whose class has resolvable, mockable collaborators."""
+        found: List[MethodInfo] = []
+        for src in self.analyzer.find_source_files():
+            for m in self.extractor.extract_methods(src):
+                if m.collaborators:
+                    found.append(m)
+        return found
 
     def _resumed_test_files(self, done: Dict[str, dict]) -> List[TestFile]:
         """Rebuild TestFile objects from checkpoint records for the report.

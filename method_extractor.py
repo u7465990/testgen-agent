@@ -14,6 +14,42 @@ from target_profile import TargetProfile
 # ── Data model ────────────────────────────────────────────────
 
 @dataclass
+class FieldInfo:
+    """One field of the class under test."""
+
+    type_name: str            # as written in source, e.g. "List<Order>"
+    name: str
+    modifiers: List[str] = field(default_factory=list)
+
+
+@dataclass
+class ConstructorInfo:
+    """One constructor of the class under test."""
+
+    name: str
+    parameter_types: List[str] = field(default_factory=list)
+    parameter_names: List[str] = field(default_factory=list)
+    modifiers: List[str] = field(default_factory=list)
+
+
+@dataclass
+class Collaborator:
+    """An injected dependency of the class under test that can be mocked.
+
+    Only populated for types that resolve to project source *and* are an
+    interface or abstract class — see collaborator_resolver.py for why the bar
+    is that high.
+    """
+
+    type_name: str            # as written in source, e.g. "PaymentGateway"
+    fqn: str = ""             # resolved, e.g. "com.demo.PaymentGateway"
+    kind: str = ""            # "interface" | "abstract-class"
+    injection: str = ""       # "constructor" | "field"
+    source_path: str = ""
+    method_signatures: List[str] = field(default_factory=list)
+
+
+@dataclass
 class MethodInfo:
     """All extracted information about one Java method."""
 
@@ -36,6 +72,13 @@ class MethodInfo:
     source_code: str = ""        # Full method source including signature + body
     method_body: str = ""        # Just the body
     class_context: str = ""      # Fields + constructors summary of enclosing class
+    # The same class shape, structured. `class_context` above is that shape
+    # rendered for the prompt; these are what mock-target generation reads.
+    # Defaulted throughout so checkpoints written before they existed still
+    # load — agent.py rebuilds resumed methods with MethodInfo(**record).
+    fields: List[FieldInfo] = field(default_factory=list)
+    constructors: List[ConstructorInfo] = field(default_factory=list)
+    collaborators: List[Collaborator] = field(default_factory=list)
     imports: List[str] = field(default_factory=list)
     allowed_imports: List[str] = field(default_factory=list)
     branch_conditions: List[str] = field(default_factory=list)
@@ -93,6 +136,35 @@ def always_allowed(junit_version: int = 4) -> Set[str]:
     )
     return _ALWAYS_ALLOWED_COMMON | junit
 
+
+def mockito_allowed(junit_version: int = 4) -> Set[str]:
+    """Import whitelist for Mockito, for a JUnit version.
+
+    Only added to a method's allowed imports when Mockito is actually on the
+    project's classpath — otherwise the LLM could emit imports that cannot
+    resolve and every mock test would fail to compile.
+    """
+    base: Set[str] = {
+        "org.mockito.Mockito",
+        "org.mockito.Mockito.*",
+        "org.mockito.ArgumentMatchers",
+        "org.mockito.ArgumentMatchers.*",
+        "org.mockito.Mock",
+        "org.mockito.InjectMocks",
+        "org.mockito.MockitoAnnotations",
+    }
+    if junit_version == 5:
+        # The annotation idiom for JUnit 5. Strictness is needed because the
+        # lenient setting is not optional — see target_generator._mock_targets.
+        base |= {
+            "org.mockito.junit.jupiter.MockitoExtension",
+            "org.mockito.junit.jupiter.MockitoSettings",
+            "org.mockito.quality.Strictness",
+        }
+    else:
+        base |= {"org.mockito.junit.MockitoJUnitRunner"}
+    return base
+
 KEYWORD_SET: Set[str] = {
     "abstract", "assert", "boolean", "break", "byte", "case", "catch",
     "char", "class", "const", "continue", "default", "do", "double",
@@ -143,6 +215,18 @@ class MethodExtractor:
             except Exception as e:
                 print(f"  [WARN] Failed to init SootUp backend: {e}")
                 print(f"  [WARN] Falling back to javalang only.")
+
+    def set_source_index(self, source_index) -> None:
+        """Attach the project source index used to resolve collaborator types.
+
+        The agent builds it once it has discovered the source files; until
+        then no type name can be resolved and no mock targets are produced.
+        """
+        self._primary.set_source_index(source_index)
+        if self._sootup is not None:
+            setter = getattr(self._sootup, "set_source_index", None)
+            if callable(setter):
+                setter(source_index)
 
     def extract_methods(self, source_file: SourceFile) -> List[MethodInfo]:
         """Extract methods from a source file.

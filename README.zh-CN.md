@@ -191,6 +191,9 @@ Method filtering:
                                   项目的测试 classpath）
   --java {auto,8,11,17,21}        生成测试的 Java 级别（默认 auto = 跟随被测
                                   项目的构建文件）
+  --add-mock-deps                 把 Mockito 测试依赖写进被测项目的 pom.xml，
+                                  否则工具默认不改动被测项目（幂等，原 pom
+                                  备份一次）
 
 Repair:
   --max-repair N                  最大编译修复轮数（默认 3）
@@ -339,7 +342,7 @@ agent 使用两套 prompt 模板，改编自最初的作业：
 
 ### 项目结构
 
-约 4,500 行 Python，20 个模块 —— 全部在仓库根目录。
+约 5,500 行 Python，22 个模块 —— 全部在仓库根目录。
 
 ```
 agent.py             566  TestGeneratorAgent —— 8 阶段编排器
@@ -348,13 +351,16 @@ report_generator.py  401  Markdown / JSON / CSV / 控制台输出
 java_analyzer.py     312  项目发现、构建工具检测、classpath
 main.py              277  CLI 入口
 quality_analyzer.py  258  空测试类、断言密度、PiTest 解析
-coverage_analyzer.py 235  JaCoCo XML 解析
 compiler.py          242  javac 调用 + 项目构建
-target_generator.py  231  Normal / Boundary / Exception / Path / Reflection 目标
-target_profile.py    414  探测被测项目的 Java / JUnit 版本
-method_extractor.py  199  基于 javalang 的方法提取
-test_writer.py       186  测试格式化、命名、文件读写
+coverage_analyzer.py 235  JaCoCo XML 解析
+java_analyzer.py     357  项目发现、构建工具探测、classpath
+target_generator.py  343  Normal / Boundary / Exception / Path / Reflection / Mock 目标
+target_profile.py    491  探测被测项目的 Java / JUnit / Mockito
+collaborator_resolver.py 341  把注入依赖解析到项目源码
+method_extractor.py  284  基于 javalang 的方法提取 + 导入白名单
+test_writer.py       202  测试格式化、命名、文件读写
 prompt_manager.py    165  Prompt 模板加载与替换
+mock_deps.py         154  可选：把 Mockito 依赖注入 pom
 llm_client.py        104  统一的 OpenAI + Anthropic/DeepSeek 客户端
 config.py             96  AgentConfig 数据类
 skill_entry.py        96  旧版 CLI 包装（见上方 skill 说明）
@@ -362,8 +368,9 @@ runlog.py             93  运行日志（.testgen-agent/run.log）
 checkpoint.py         60  JSONL 续跑支持
 extractor/                可插拔的提取后端（javalang，可选 SootUp）
 prompts/                  四个 prompt 模板（generate/repair × system/user）
-examples/demo-project/        端到端验证用的示例（JUnit 4 + Java 8）
-examples/demo-project-junit5/ 同样的类，JUnit 5 + Java 17（验证框架探测）
+examples/demo-project/          验证用的示例（JUnit 4 + Java 8）
+examples/demo-project-junit5/   同样的类，JUnit 5 + Java 17（验证框架探测）
+examples/demo-project-mockito/  同样的类 + 一个构造器注入的服务（验证 mocking）
 references/               Skill 定义草稿
 ```
 
@@ -529,7 +536,8 @@ Claude 会读取 skill、运行流水线、读取 `report.json` 并汇报 ——
 
 - 生成的测试**匹配项目自身的框架**（JUnit 4 或 5）和编译级别，两者都自动探测。JUnit 4 项目下意味着不用 lambda、不用 `assertThrows`；JUnit 5 下 lambda 是允许且推荐的。下限是 Java 8。
 - **异常目标只为*声明式受检异常*生成**（签名里的 `throws`）。方法体里抛出的非受检异常（`IllegalArgumentException`、`NullPointerException`）不会产生 `[Exception]` 目标，因此 LLM 倾向用 `try/catch` 而不是 `assertThrows` 来断言它。检测方法体里的 `throw new X(...)` 是解决这个问题的后续工作。
-- **不支持 mocking。** prompt 里禁止了 Mockito，因此有依赖注入的类（service、repository）通常生成不出可运行的测试。这是面对真实项目时最大的缺口。
+- **mocking 只覆盖构造器/字段注入的协作者。** 依赖是**项目自身源码里的接口或抽象类**时，会生成 `[Mock]` 目标：协作者的公共方法签名被解析出来放进 prompt，因此生成的测试会写真正的 `when(...).thenReturn(...)` 桩。未覆盖：`mockStatic`（需 `mockito-inline`）、HTTP/数据库/消息队列的替身——那些属于项目级基建，不该每次测试现编。**项目里的具体类**作为构造器参数刻意不当作可 mock，所以「一个可 mock 的协作者 + 一个具体项目类型」的构造器会**完全不生成** mock 目标，而不是生成编译不过的半吊子骨架。
+- **Mockito 必须由 pom 声明。** 工具默认只读：缺失时警告并跳过 mock 目标。`--add-mock-deps` 才会写入依赖（幂等，并生成 `pom.xml.testgen-backup`），按 Java 版本选择 `mockito-core` 4.11.0（Java 8）或 5.12.0（Java 11+），JUnit 5 下再加 `mockito-junit-jupiter`。
 - 生成的测试文件命名规则是 `ClassName_method_ParamType_Test_Type_N`。Maven 项目必须配置 surefire 的 `<includes>`（例如 `**/*_Test_*.java`）才会执行它们 —— 见 `examples/demo-project/pom.xml`。
 - 分支条件是从**源码**提取的，而不是 Jimple IR（可能漏掉编译器生成的分支）
 - Phase B（覆盖率补测）要求目标项目已配置 **Maven + JaCoCo**

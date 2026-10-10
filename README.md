@@ -185,6 +185,10 @@ Target framework:
                                   = follow the project's test classpath)
   --java {auto,8,11,17,21}        Java level for the generated tests (default:
                                   auto = follow the project's build file)
+  --add-mock-deps                 Write the Mockito test dependency into the
+                                  target pom.xml; without it the agent never
+                                  modifies the project it is pointed at
+                                  (idempotent, original pom backed up once)
 
 Method filtering:
   --package PACKAGE               Only target this package (repeatable)
@@ -347,32 +351,35 @@ Branch conditions extracted from source code replace the Jimple IR used in earli
 
 ### Project Layout
 
-~4,500 lines of Python across 20 modules — all at the repo root.
+~5,500 lines of Python across 22 modules — all at the repo root.
 
 ```
-agent.py             614  TestGeneratorAgent — the 8-phase orchestrator
-repair_loop.py       418  Compilation repair loop + coverage improvement
-report_generator.py  416  Markdown / JSON / CSV / console output
-target_profile.py    414  Java/JUnit version detection for the project under test
-main.py              319  CLI entry point
-java_analyzer.py     312  Project discovery, build-tool detection, classpath
-quality_analyzer.py  258  Empty classes, assertion density, PiTest parsing
-compiler.py          242  javac invocation + project build
-coverage_analyzer.py 235  JaCoCo XML parsing
-target_generator.py  231  Normal / Boundary / Exception / Path / Reflection targets
-method_extractor.py  199  javalang-based method extraction
-test_writer.py       186  Test formatting, naming, file I/O
-prompt_manager.py    165  Prompt template loading + substitution
-llm_client.py        104  Unified OpenAI + Anthropic/DeepSeek client
-config.py             96  AgentConfig dataclass
-skill_entry.py        96  Legacy CLI wrapper (see the skill note above)
-runlog.py             93  Run logging (.testgen-agent/run.log)
-checkpoint.py         60  JSONL resume support
+agent.py              721  TestGeneratorAgent — the 8-phase orchestrator
+target_profile.py     491  Java/JUnit/Mockito detection for the project under test
+repair_loop.py        418  Compilation repair loop + coverage improvement
+report_generator.py   416  Markdown / JSON / CSV / console output
+java_analyzer.py      357  Project discovery, build-tool detection, classpath
+target_generator.py   343  Normal / Boundary / Exception / Path / Reflection / Mock
+collaborator_resolver.py 341  Resolves injected dependencies to project source
+main.py               319  CLI entry point
+method_extractor.py   284  javalang-based method extraction + import whitelist
+quality_analyzer.py   258  Empty classes, assertion density, PiTest parsing
+compiler.py           242  javac invocation + project build
+coverage_analyzer.py  235  JaCoCo XML parsing
+test_writer.py        202  Test formatting, naming, file I/O
+prompt_manager.py     165  Prompt template loading + substitution
+mock_deps.py          154  Opt-in Mockito dependency injection into a pom
+llm_client.py         104  Unified OpenAI + Anthropic/DeepSeek client
+config.py              96  AgentConfig dataclass
+skill_entry.py         96  Legacy CLI wrapper (see the skill note above)
+runlog.py              93  Run logging (.testgen-agent/run.log)
+checkpoint.py          60  JSONL resume support
 extractor/                Pluggable extraction backends (javalang, opt-in SootUp)
 prompts/                  Four prompt templates (generate/repair × system/user)
-examples/demo-project/        Verified demo — JUnit 4 + Java 8
-examples/demo-project-junit5/ Same classes, JUnit 5 + Java 17 (framework detection)
-references/                   Skill definition draft
+examples/demo-project/          Verified demo — JUnit 4 + Java 8
+examples/demo-project-junit5/   Same classes, JUnit 5 + Java 17 (framework detection)
+examples/demo-project-mockito/  Same classes + an injected-dependency service (mocking)
+references/                     Skill definition draft
 ```
 
 ## Output
@@ -546,7 +553,8 @@ On Windows, `javac` resolution requires `JAVA_HOME` to point to a JDK (not JRE),
 ## Limitations
 
 - Generated tests match the **project's own framework** (JUnit 4 or 5) and compiler level — both auto-detected. For a JUnit 4 project that means no lambdas and no `assertThrows`; for JUnit 5, lambdas are allowed and expected. Java 8 is the floor.
-- **No mocking.** The prompt forbids Mockito, so classes with injected dependencies (services, repositories) generally cannot produce runnable tests. This is the single biggest gap for real-world projects.
+- **Mocking covers constructor/field-injected collaborators only.** A class whose dependency is an interface or abstract class *in the project's own source* gets a `[Mock]` target: the collaborator's public signatures are resolved and put in the prompt, so the generated test writes real `when(...).thenReturn(...)` stubs. Not covered: `mockStatic` (needs `mockito-inline`), and HTTP/database/message-queue stand-ins — those are project-level infrastructure, not something to invent per test. A concrete project class used as a constructor parameter is deliberately *not* mockable, so a constructor that mixes a mockable collaborator with a concrete type gets no mock target rather than an uncompilable half-mocked skeleton.
+- **Mockito must be declared in the pom.** The agent is read-only by default: it warns and skips mock targets when Mockito is missing. `--add-mock-deps` writes the dependency (idempotent, with a `pom.xml.testgen-backup`), picking `mockito-core` 4.11.0 for Java 8 and 5.12.0 for Java 11+, plus `mockito-junit-jupiter` on JUnit 5.
 - **Exception targets are only generated for *declared* checked exceptions** (`throws` in the signature). A method that throws an unchecked exception (`IllegalArgumentException`, `NullPointerException`) gets no `[Exception]` target, so the LLM tends to assert it with `try/catch` instead of `assertThrows`. Detecting `throw new X(...)` in the method body is the follow-up that would fix this.
 - Generated test files use the naming convention `ClassName_method_ParamType_Test_Type_N`. Maven projects must configure surefire's `<includes>` (e.g. `**/*_Test_*.java`) for them to be executed — see `examples/demo-project/pom.xml`.
 - Branch conditions are extracted from **source code** rather than Jimple IR (may miss compiler-generated branches)

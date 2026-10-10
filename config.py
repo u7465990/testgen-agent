@@ -39,6 +39,10 @@ class AgentConfig:
     junit_version: str = "auto"   # "auto" | "4" | "5"
     java_version: str = "auto"    # "auto" | "8" | "11" | "17" | "21"
 
+    # Mockito support is opt-in for *writing* to the target project: by default
+    # the agent only reads and warns when Mockito is missing (see mock_deps.py).
+    add_mock_deps: bool = False
+
     # ── Method filtering ──────────────────────────────────────
     include_public: bool = True
     include_private: bool = True

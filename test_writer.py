@@ -76,26 +76,42 @@ class TestWriter:
         for pt in method.parameter_types:
             param_suffix += "_" + TestWriter._short_type(pt)
 
-        target_label = "General"
-        tl = target.lower()
-        if "normal" in tl:
-            target_label = "Normal"
-        elif "boundary" in tl:
-            target_label = "Boundary"
-        elif "exception" in tl:
-            target_label = "Exception"
-        elif "path" in tl:
-            target_label = "Path"
-        elif "reflection" in tl:
-            target_label = "Reflection"
-        elif "missingbranch" in tl:
-            target_label = "MissingBranch"
+        target_label = TestWriter._target_label(target)
 
         safe_m = mname.replace("<", "_").replace(">", "_")
         safe_c = cls.replace("<", "_").replace(">", "_")
         return f"{safe_c}_{safe_m}{param_suffix}_Test_{target_label}_{index}"
 
     # ── Package from FQN ──────────────────────────────────────
+
+    @staticmethod
+    def _target_label(target: str) -> str:
+        """The `_Test_<Label>_` segment of a generated class name.
+
+        The explicit `[Tag]` prefix wins when present. Scanning the whole
+        description for keywords instead is what mislabelled every Mockito test
+        as `_Test_Exception_`: the mock target text explains "assert on the
+        thrown exception", so "exception" matched before "mock" ever got
+        checked. Substring matching over prose is only the fallback for a
+        target that carries no tag.
+        """
+        match = re.match(r"\s*\[([A-Za-z]+)\]", target or "")
+        if match:
+            return match.group(1)
+
+        tl = (target or "").lower()
+        for keyword, label in (
+            ("normal", "Normal"),
+            ("boundary", "Boundary"),
+            ("exception", "Exception"),
+            ("path", "Path"),
+            ("reflection", "Reflection"),
+            ("missingbranch", "MissingBranch"),
+            ("mock", "Mock"),
+        ):
+            if keyword in tl:
+                return label
+        return "General"
 
     @staticmethod
     def get_package(method: MethodInfo) -> str:

@@ -14,7 +14,7 @@ Test Generator {
         focal_method_allowed_imports: the ONLY import statements you are permitted to use. Any class not listed here (except java.lang) MUST NOT be used.
         focal_method_exceptions: exceptions declared by the focal method, or "none".
         focal_method_modifiers: the modifier keywords of the method (e.g., "public static", "private", "protected final").
-        generation_target: a specific test objective with a tag like [Normal], [Boundary], [Exception], or [Path]. Follow it exactly.
+        generation_target: a specific test objective, tagged [Normal], [Boundary], [Exception], [Path], [Reflection], [MissingBranch] or [Mock]. Follow it exactly, including any framework idiom it specifies.
         generated_test_code: the Java test code you output.
     }
 
@@ -29,6 +29,7 @@ Test Generator {
         @rule6: The output must contain only the Java test class, including imports and one @Test method. No markdown, no explanations.
         #{JUnitSyntaxRule}#
         @rule8: The test class must be public and have a unique name based on the focal method and generation_target.
+        @rule9: Mocking is allowed ONLY for a generation_target tagged [Mock], and only using the Mockito types listed in focal_method_allowed_imports. When the target is tagged [Mock], follow the mock idiom it describes exactly. For every other target, write no mock code and use plain inputs.
 
         @format {
             @input:

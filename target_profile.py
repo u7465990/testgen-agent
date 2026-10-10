@@ -57,6 +57,12 @@ class TargetProfile:
     junit_version: int = DEFAULT_JUNIT_VERSION
     java_source: str = "default"
     junit_source: str = "default"
+    # Mockito is optional: it gates mock-target generation and the
+    # org.mockito.* import whitelist. False means "generate no mock tests",
+    # never "generate mock tests that cannot compile".
+    mockito_available: bool = False
+    mockito_version: str = ""
+    mockito_source: str = "not found"
     warnings: List[str] = field(default_factory=list)
 
     @property
@@ -85,8 +91,16 @@ class TargetProfile:
             "junit_version": self.junit_version,
             "java_source": self.java_source,
             "junit_source": self.junit_source,
+            "mockito_available": self.mockito_available,
+            "mockito_version": self.mockito_version,
+            "mockito_source": self.mockito_source,
             "warnings": list(self.warnings),
         }
+
+    @property
+    def mockito_label(self) -> str:
+        return f"Mockito {self.mockito_version}" if self.mockito_version \
+            else "Mockito"
 
 
 # ── Public API ────────────────────────────────────────────────
@@ -133,6 +147,7 @@ def detect_into(
     profile.junit_version, profile.junit_source = _detect_junit(
         project_path, classpath, configured_junit
     )
+    detect_mockito(profile, project_path, classpath)
 
     if not profile.supported:
         profile.warnings.append(
@@ -344,6 +359,59 @@ def _build_file_junit_signals(project_path: Path) -> Tuple[bool, bool]:
             "junit-4." in norm or "<artifactid>junit</artifactid>" in norm)
 
 
+# ── Mockito availability ──────────────────────────────────────
+
+# name fragment -> human label, matched against the resolved classpath.
+_MOCKITO_ARTIFACTS = (
+    ("mockito-junit-jupiter", "mockito-junit-jupiter"),
+    ("mockito-inline", "mockito-inline"),
+    ("mockito-core", "mockito-core"),
+    ("mockito-all", "mockito-all"),
+)
+
+
+def detect_mockito(
+    profile: TargetProfile, project_path: Path, classpath: str
+) -> None:
+    """Fill the profile's Mockito fields in place.
+
+    The classpath is authoritative rather than the pom: it is what `javac` and
+    `mvn test` will actually see. A pom-only declaration that never resolved
+    (offline, bad coordinates) must not enable mock generation.
+    """
+    norm = (classpath or "").replace("\\", "/").lower()
+    for fragment, label in _MOCKITO_ARTIFACTS:
+        if fragment in norm:
+            profile.mockito_available = True
+            profile.mockito_source = "classpath"
+            profile.mockito_version = _mockito_version_from_path(norm, fragment)
+            return
+
+    if pom_declares(project_path, "mockito"):
+        # Declared but not resolved onto the classpath — do not enable, but say
+        # so, because "I added Mockito and it still didn't work" is otherwise
+        # a silent dead end.
+        profile.mockito_source = "declared in pom.xml but not on the classpath"
+        profile.warnings.append(
+            "pom.xml declares Mockito but it is not on the resolved test "
+            "classpath (offline, or the dependency did not resolve) — mock "
+            "targets are disabled."
+        )
+        return
+
+    profile.mockito_source = "not found"
+
+
+def _mockito_version_from_path(norm_classpath: str, fragment: str) -> str:
+    """Pull the version out of a Maven repo path like .../mockito-core/5.12.0/."""
+    marker = f"/{fragment}/"
+    idx = norm_classpath.find(marker)
+    if idx == -1:
+        return ""
+    rest = norm_classpath[idx + len(marker):]
+    return rest.split("/", 1)[0]
+
+
 # ── Build-file helpers ────────────────────────────────────────
 
 def _strip_xml_comments(text: str) -> str:
@@ -397,7 +465,13 @@ def _classes_dirs(project_path: Path) -> List[Path]:
 
 
 def pom_declares(project_path: Path, artifact: str) -> bool:
-    """True if the project's root pom mentions `artifact` at all.
+    """True if the project's root pom declares `artifact` as a dependency.
+
+    Matches the `<artifactId>` element rather than the bare string, so a pom
+    that merely *mentions* the name (a `<description>`, a comment that
+    survived stripping) is not mistaken for a declaration. Observed as a false
+    positive: a demo pom describing itself as using Mockito was reported as
+    declaring Mockito while the dependency was absent.
 
     Used to decide whether mutation analysis can run: PiTest needs
     `pitest-junit5-plugin` on its own plugin classpath for JUnit 5, and that
@@ -409,6 +483,9 @@ def pom_declares(project_path: Path, artifact: str) -> bool:
     if not pom.is_file():
         return False
     try:
-        return artifact in _strip_xml_comments(pom.read_text(encoding="utf-8"))
+        text = _strip_xml_comments(pom.read_text(encoding="utf-8"))
     except OSError:
         return False
+    return re.search(
+        rf"<artifactId>\s*{re.escape(artifact)}\s*</artifactId>", text
+    ) is not None
