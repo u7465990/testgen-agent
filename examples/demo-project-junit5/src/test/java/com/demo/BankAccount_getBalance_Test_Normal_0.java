@@ -8,10 +8,10 @@ public class BankAccount_getBalance_Test_Normal_0 {
 
 
     @Test
-    public void testGetBalanceReturnsConstructorInitialBalance() {
+    public void testGetBalanceReturnsInitialBalance() {
         BankAccount account = new BankAccount("Alice", 1000.50);
-        double actual = account.getBalance();
-        assertEquals(1000.50, actual, 0.0);
+        double result = account.getBalance();
+        assertEquals(1000.50, result, 0.0);
     }
 
 }

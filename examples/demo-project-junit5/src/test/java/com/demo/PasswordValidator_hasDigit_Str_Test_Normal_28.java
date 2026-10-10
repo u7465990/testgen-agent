@@ -1,27 +1,29 @@
 package com.demo;
 
 import com.demo.PasswordValidator;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PasswordValidator_hasDigit_Str_Test_Normal_28 {
 
 
     @Test
-    public void testHasDigit() throws Exception {
+    public void testHasDigitWithTypicalInputs() {
         PasswordValidator validator = new PasswordValidator();
+        try {
+            Method hasDigitMethod = PasswordValidator.class.getDeclaredMethod("hasDigit", String.class);
+            hasDigitMethod.setAccessible(true);
 
-        Method method = PasswordValidator.class.getDeclaredMethod("hasDigit", String.class);
-        method.setAccessible(true);
+            boolean resultForTest = (boolean) hasDigitMethod.invoke(validator, "test");
+            assertFalse(resultForTest, "hasDigit(\"test\") should be false");
 
-        // Typical valid input: "test" (a plain alphabetic string)
-        boolean resultTest = (Boolean) method.invoke(validator, "test");
-        Assertions.assertFalse(resultTest, "Expected hasDigit(\"test\") to be false");
-
-        // Empty string boundary
-        boolean resultEmpty = (Boolean) method.invoke(validator, "");
-        Assertions.assertFalse(resultEmpty, "Expected hasDigit(\"\") to be false");
+            boolean resultForEmpty = (boolean) hasDigitMethod.invoke(validator, "");
+            assertFalse(resultForEmpty, "hasDigit(\"\") should be false");
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            fail("Reflection failed: " + e.getMessage());
+        }
     }
 
 }

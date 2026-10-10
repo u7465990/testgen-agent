@@ -89,18 +89,32 @@ mutation score 才是真正重要的数字：**能抓住 75–84% 注入的故�
 
 ### JUnit 5 / Java 17 的运行
 
-`examples/demo-project-junit5` 用**同样的四个类**配了一个 JUnit 5 的 pom，用来验证 agent 跟随项目而不是强加框架。不加任何参数，自动探测出 **Java 17 / JUnit 5**，一次运行的结果：
+`examples/demo-project-junit5` 用**同样的四个类**配了一个 JUnit 5 的 pom，用来验证 agent 跟随项目而不是强加框架。不加任何参数，自动探测出 **Java 17 / JUnit 5**。两次运行的结果：
 
 | 指标 | 结果 |
 |--------|------|
 | 生成的测试文件 | 40 |
 | 编译通过率 | 40 / 40（100%） |
-| surefire 实际执行 | 43 |
-| **Mutation score（PiTest）** | **66 / 80（82.5%）** |
-| 断言密度 | 2.30 / 每个 `@Test` 方法 |
-| 空测试类 | 1 |
+| surefire 实际执行 | 40 |
+| **Mutation score（PiTest）** | **61–69 / 80（76–86%）** |
+| 断言密度 | 2.83 / 每个 `@Test` 方法 |
+| 空测试类 | 0 |
 
-重点在对比：同一个 agent 跑两个项目，对 Java 8 那个产出 `org.junit.Assert` 风格，对 Java 17 那个产出 `org.junit.jupiter.api.Assertions`。详见 [JUnit 5 demo README](examples/demo-project-junit5/README.md) —— 包括它**还没做对**的那一个惯用法（`assertThrows` 从未被触发，因为异常目标只覆盖声明式受检异常）。
+用区间而非单个数，理由和 JUnit 4 基线一样：两次运行分别是 76.2% 和 86.2%。
+
+重点在对比：同一个 agent 跑两个项目，对 Java 8 那个产出 `org.junit.Assert` / `try-catch` 风格，对 Java 17 那个产出 `org.junit.jupiter.api.Assertions.assertThrows(..., () -> ...)`。生成的 JUnit 5 异常测试长这样：
+
+```java
+IllegalArgumentException ex = Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> account.deposit(0.0)
+);
+Assertions.assertEquals("Deposit must be positive", ex.getMessage());
+```
+
+复现步骤和已知局限见 [JUnit 5 demo README](examples/demo-project-junit5/README.md)。
+
+> **关于最初发布的那个 JUnit 5 数字。** 本 README 早先引用过一个单独的 82.5%。那次测量是真实的，但当时有一个接线 bug 让**生成**提示词拿到的是 JUnit 4 规则（`"Do NOT use assertThrows()"`），而目标文本要求的又是 JUnit 5——互相矛盾的指令导致零个 `assertThrows`、一个匿名 `new Executable() { ... }`。修好接线后（`agent.py` 没把探测到的框架传给 `render_generate_prompt`）输出变成了地道的 lambda，也就有了上面这组数字。这个 bug 之所以被掩盖，是因为**修复**提示词那条路径传对了框架，只有首次生成是错的。
 
 ## 快速开始
 

@@ -21,6 +21,11 @@ class AgentConfig:
     api_key: Optional[str] = None  # None = read from env var
     temperature: float = 0.2
     max_llm_retries: int = 3
+    # Anthropic's API requires max_tokens (unlike OpenAI's, where it is
+    # optional). 4096 truncated JUnit 5 tests mid-string on a real run — the
+    # response looked fine until javac reported an unterminated string literal
+    # at EOF. 8192 leaves headroom; raise it for unusually verbose tests.
+    max_tokens: int = 8192
 
     # ── Extraction ────────────────────────────────────────────
     extraction_mode: str = "python"  # "python" (javalang) | "sootup" (javalang + Jimple)

@@ -3,28 +3,29 @@ package com.demo;
 import com.demo.PasswordValidator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PasswordValidator_hasDigit_Str_Test_Boundary_29 {
 
 
     @Test
-    public void testHasDigitWithNullParameter() {
+    public void testHasDigitWithNullBoundary() throws Exception {
         PasswordValidator validator = new PasswordValidator();
-        try {
-            Method method = PasswordValidator.class.getDeclaredMethod("hasDigit", String.class);
-            method.setAccessible(true);
-            method.invoke(validator, new Object[] { null });
-            Assertions.fail("Expected NullPointerException when passing null to hasDigit");
-        } catch (InvocationTargetException e) {
-            Assertions.assertTrue(e.getCause() instanceof NullPointerException,
-                    "Expected cause to be NullPointerException but was: " + e.getCause());
-        } catch (IllegalAccessException e) {
-            Assertions.fail("Unexpected IllegalAccessException: " + e.getMessage());
-        } catch (NoSuchMethodException e) {
-            Assertions.fail("Unexpected NoSuchMethodException: " + e.getMessage());
-        }
+
+        Method hasDigit = PasswordValidator.class.getDeclaredMethod("hasDigit", String.class);
+        hasDigit.setAccessible(true);
+
+        // Boundary: null input for the String parameter.
+        // The method dereferences the argument (e.g. via length()/charAt()),
+        // so the underlying invocation is expected to fail with a NullPointerException,
+        // which reflection wraps in an InvocationTargetException.
+        InvocationTargetException thrown = assertThrows(
+                InvocationTargetException.class,
+                () -> hasDigit.invoke(validator, (String) null)
+        );
+
+        assertInstanceOf(NullPointerException.class, thrown.getCause());
     }
 
 }

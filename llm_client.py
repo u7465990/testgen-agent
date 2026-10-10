@@ -24,6 +24,7 @@ class LLMClient:
         self.model = config.llm_model
         self.temperature = config.temperature
         self.max_retries = config.max_llm_retries
+        self.max_tokens = config.max_tokens
         self._client = self._init_client(config.get_api_key())
 
     def _init_client(self, api_key: str):
@@ -73,7 +74,7 @@ class LLMClient:
                         model=self.model,
                         system=system_prompt,
                         messages=[{"role": "user", "content": user_prompt}],
-                        max_tokens=4096,
+                        max_tokens=self.max_tokens,
                         temperature=self.temperature,
                     )
                     # Response may contain ThinkingBlock(s) before the
@@ -84,6 +85,7 @@ class LLMClient:
                         for block in response.content
                         if getattr(block, "type", "") == "text" and block.text
                     )
+                    self._warn_if_truncated(response, text)
                     logger.debug("LLM response %dch:\n%s", len(text), text)
                     return text
 
@@ -102,3 +104,23 @@ class LLMClient:
         raise LLMError(
             f"LLM call failed after {self.max_retries} attempts: {last_error}"
         ) from last_error
+
+    def _warn_if_truncated(self, response, text: str) -> None:
+        """Surface a max_tokens truncation as itself, not as a javac error.
+
+        A truncated response is cut mid-token, so the Java is syntactically
+        broken in a way that reads like a model mistake — on a real run it
+        presented as "unterminated string literal" at EOF, and the resulting
+        uncompilable file then blocked the whole PiTest phase. The API tells us
+        the real reason, so say it.
+        """
+        if getattr(response, "stop_reason", "") != "max_tokens":
+            return
+        logger.warning(
+            "LLM response TRUNCATED at max_tokens=%d (%d chars returned). "
+            "The generated test is incomplete and will fail to compile.",
+            self.max_tokens, len(text),
+        )
+        print(f"  [WARN] LLM response truncated at max_tokens="
+              f"{self.max_tokens} - the test is incomplete and will not "
+              f"compile. Raise --max-tokens to fix.")

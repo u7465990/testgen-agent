@@ -69,9 +69,10 @@ _ALWAYS_ALLOWED_JUNIT4: Set[str] = {
     "org.junit.Ignore",
 }
 
-# JUnit 5 renamed every one of these (Test stays but Assert did not), and
-# assertThrows() takes an Executable — so a lambda-based exception test cannot
-# compile unless that type is importable.
+# JUnit 5 renamed every one of these (Test stays but Assert did not). Executable
+# is here only so the explicit form is legal if the model writes it: a lambda
+# passed to assertThrows() needs no import at all (its target type is inferred),
+# which is why the prompt asks for a lambda and not an anonymous inner class.
 _ALWAYS_ALLOWED_JUNIT5: Set[str] = {
     "org.junit.jupiter.api.Test",
     "org.junit.jupiter.api.Assertions",

@@ -90,18 +90,32 @@ Run artifacts (report.json / report.csv / surefire results / generated tests) ar
 
 ### JUnit 5 / Java 17 run
 
-`examples/demo-project-junit5` holds the **same four classes** with a JUnit 5 pom, to verify that the agent follows the project rather than imposing a framework. Auto-detection picked **Java 17 / JUnit 5** with no flags, and one run produced:
+`examples/demo-project-junit5` holds the **same four classes** with a JUnit 5 pom, to verify that the agent follows the project rather than imposing a framework. Auto-detection picked **Java 17 / JUnit 5** with no flags. Two runs measured:
 
 | Metric | Result |
 |--------|--------|
 | Test files generated | 40 |
 | Compile pass rate | 40 / 40 (100%) |
-| Tests executed (surefire) | 43 |
-| **Mutation score (PiTest)** | **66 / 80 (82.5%)** |
-| Assertion density | 2.30 per `@Test` method |
-| Empty test classes | 1 |
+| Tests executed (surefire) | 40 |
+| **Mutation score (PiTest)** | **61–69 / 80 (76–86%)** |
+| Assertion density | 2.83 per `@Test` method |
+| Empty test classes | 0 |
 
-The comparison is the point: the same agent, run on two projects, emits `org.junit.Assert` / `@Test(expected=...)`-style code for the Java 8 one and `org.junit.jupiter.api.Assertions` for the Java 17 one. See the [JUnit 5 demo README](examples/demo-project-junit5/README.md) — including the one idiom it *doesn't* get right yet (`assertThrows` is never requested, because the exception targets only cover declared checked exceptions).
+Quoted as a range for the same reason as the JUnit 4 baseline: the two runs scored 76.2% and 86.2%.
+
+The comparison is the point: the same agent, run on two projects, emits `org.junit.Assert` / `try-catch` style for the Java 8 one and `org.junit.jupiter.api.Assertions.assertThrows(..., () -> ...)` for the Java 17 one. Generated JUnit 5 exception tests look like this:
+
+```java
+IllegalArgumentException ex = Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> account.deposit(0.0)
+);
+Assertions.assertEquals("Deposit must be positive", ex.getMessage());
+```
+
+See the [JUnit 5 demo README](examples/demo-project-junit5/README.md) for the reproduction steps and the remaining limitations.
+
+> **A note on the first published JUnit 5 number.** An earlier revision of this README quoted a single 82.5%. That measurement was real but taken while a wiring bug fed the *generate* prompt JUnit 4 rules (`"Do NOT use assertThrows()"`) while the target text asked for JUnit 5 — contradictory instructions that produced zero `assertThrows` and one anonymous `new Executable() { ... }`. Fixing the wiring (`agent.py` was not passing the detected framework to `render_generate_prompt`) changed the output to idiomatic lambdas and the scores above. The bug had been masked because the *repair* prompt did receive the framework correctly, so only the first-pass generation was wrong.
 
 ## Quick Start
 

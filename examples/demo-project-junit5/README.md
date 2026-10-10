@@ -27,28 +27,29 @@ cd examples/demo-project-junit5 && mvn clean test
 
 ## Measured results (2026-10)
 
-One run on DeepSeek `deepseek-v4-flash`. **A single run, not a guarantee** — the
-LLM does not repeat itself, so treat these as a sample, not a benchmark.
+Two runs on DeepSeek `deepseek-v4-flash`. **A sample, not a benchmark** — the
+LLM does not repeat itself, which is why the score is quoted as a range.
 
 | Metric | Result |
 |--------|--------|
 | Detected target | Java 17 / JUnit 5 |
 | Test files generated | 40 |
 | Compile pass rate | 40 / 40 (100%) |
-| Tests executed (surefire) | 43 |
-| **Mutation score (PiTest)** | **66 / 80 (82.5%)** |
-| Assertion density | 2.30 per `@Test` method |
-| Empty test classes | 1 |
+| Tests executed (surefire) | 40 |
+| **Mutation score (PiTest)** | **61–69 / 80 (76–86%)** |
+| Assertion density | 2.83 per `@Test` method |
+| Empty test classes | 0 |
+
+The two runs scored 76.2% and 86.2%.
 
 Sample generated exception assertion:
 
 ```java
-Assertions.assertThrows(IllegalArgumentException.class, new Executable() {
-    @Override
-    public void execute() throws Throwable {
-        account.withdraw(0.0);
-    }
-});
+IllegalArgumentException ex = Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> account.deposit(0.0)
+);
+Assertions.assertEquals("Deposit must be positive", ex.getMessage());
 ```
 
 ## Why `pitest-junit5-plugin` is declared in this pom
@@ -62,17 +63,24 @@ with an explicit message rather than letting Maven fail opaquely.
 That is why the declaration lives here, in a project we own, instead of the agent
 editing the pom of a project it was pointed at.
 
-## Known limitations observed in this run
+## Known limitations observed in these runs
 
-- The 2 `BankAccount.isOverdrawn` tests fail for the same reason as in the JUnit 4
-  demo: the constructor rejects negative balances, so an overdrawn state is
-  unreachable through the public API and the generated tests try to construct one.
-  The LLM understands the signature but not the class invariant.
-- 1 of 40 generated files was an empty test class (compiles, no `@Test`).
-- **No generated test used `assertThrows`.** These classes declare no `throws`
-  clause, and `[Exception]` targets are only generated for *declared* checked
-  exceptions — so the JUnit 5 exception idiom is never requested for them, and the
-  LLM falls back to `try/catch`. Generating targets for unchecked exceptions
-  thrown in the method body (`throw new X(...)`) is the follow-up that would fix
-  this; it changes what targets get generated, so it was left out of the
-  framework-version change deliberately.
+- The `BankAccount.isOverdrawn` tests error out for the same reason as in the
+  JUnit 4 demo: the constructor rejects negative balances, so an overdrawn state
+  is unreachable through the public API and the generated tests try to construct
+  one. The LLM understands the signature but not the class invariant.
+- 0 of 40 generated files were empty test classes in these runs (an earlier run
+  had 1).
+- **`assertThrows` now appears** (5 files) and is used correctly — a lambda, with
+  the thrown exception captured so its message can be asserted. An earlier
+  published revision of this file claimed `assertThrows` never appeared; that was
+  a symptom of a wiring bug, not of the target generator. The *generate* prompt
+  was not being given the detected framework, so it kept asserting "Do NOT use
+  assertThrows() (not available in JUnit 4)" while the target text asked for
+  JUnit 5. The LLM resolved the contradiction with an anonymous
+  `new Executable() { ... }` — legal under both readings, idiomatic under
+  neither. The related but separate limitation still stands: `[Exception]` targets
+  are only generated for *declared* checked exceptions, so a method that throws
+  an unchecked exception from its body gets no exception target and the LLM may
+  reach for `try/catch` instead. Detecting `throw new X(...)` in the method body
+  is the follow-up for that.

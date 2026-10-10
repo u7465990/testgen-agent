@@ -96,10 +96,10 @@ class PromptManager:
                 "@rule5: For exception testing, use "
                 "assertThrows(ExpectedException.class, () -> { ... }) and pass "
                 "a LAMBDA. Do NOT write an anonymous inner class such as "
-                "`new Executable() { ... }` — that is JUnit 4-era style and "
-                "needs no import, whereas a lambda does not need one either. "
-                "Do NOT use @Test(expected=...) (removed in JUnit 5), and do "
-                "NOT use try-catch with fail()."
+                "`new Executable() { ... }` — it compiles, but it is JUnit "
+                "4-era style and the whole point of JUnit 5 here is the "
+                "lambda. Do NOT use @Test(expected=...) (removed in JUnit 5), "
+                "and do NOT use try-catch with fail()."
             )
             syntax_rule = (
                 f"@rule7: Use JUnit 5 and Java {java}. Lambdas, method "

@@ -32,6 +32,7 @@ def build_config(args: argparse.Namespace) -> AgentConfig:
         llm_model=args.model,
         api_key=args.api_key,
         temperature=args.temperature,
+        max_tokens=args.max_tokens,
         include_constructors=args.include_constructors,
         include_private=not args.skip_private,
         target_packages=args.package,
@@ -226,6 +227,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--temperature", type=float, default=0.2,
         help="LLM temperature (default: 0.2)",
+    )
+    parser.add_argument(
+        "--max-tokens", type=int, default=8192,
+        help="Max tokens per LLM response (default: 8192; Anthropic-family "
+             "providers only). Raise it if generated tests come back "
+             "truncated — the run log will say so explicitly.",
     )
 
     # Target filtering

@@ -207,6 +207,27 @@ class MutationAnalyzer:
         return True, output
 
     @staticmethod
+    def describe_failure(output: str) -> str:
+        """Explain why a PiTest run did not complete, in the caller's terms.
+
+        The obvious wording ("Maven unavailable") is usually wrong. The common
+        real cause is a generated test that does not compile: `test-compile`
+        dies before PiTest is reached, so there are no failing *test classes*
+        for parse_failing_tests() to find and the retry never triggers. Observed
+        on a real run, where one truncated response cost the entire mutation
+        phase its result.
+        """
+        lowered = output.lower()
+        if "compilation error" in lowered or "编译错误" in output:
+            return ("a generated test does not compile, so the suite cannot be "
+                    "built and PiTest never ran (see the compile errors above).")
+        if "no tests" in lowered:
+            return ("PiTest found no tests for the target classes — check the "
+                    "surefire <includes> pattern in the project's pom.")
+        return ("Maven or pitest-maven is unavailable — see the run log for "
+                "the full output.")
+
+    @staticmethod
     def parse_failing_tests(output: str) -> List[str]:
         """Extract test classes PiTest rejected for failing before mutation.
 

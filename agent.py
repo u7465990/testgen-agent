@@ -209,7 +209,9 @@ class TestGeneratorAgent:
                     print(f"  [#{counter}] {method.fqn} — {target[:50]}...")
                     try:
                         sys_prompt, user_prompt = \
-                            self.prompt_mgr.render_generate_prompt(method, target)
+                            self.prompt_mgr.render_generate_prompt(
+                                method, target, self.profile
+                            )
                         raw_code = self.llm.generate(sys_prompt, user_prompt)
                     except Exception as e:
                         report.errors.append(
@@ -523,9 +525,25 @@ class TestGeneratorAgent:
         if not ran:
             failing = MutationAnalyzer.parse_failing_tests(output)
             if not failing:
+                # Distinguish the real cause, and name the offending files when
+                # they are ours: an uncompilable generated test blocks the whole
+                # phase, and the generic "Maven unavailable" wording sent a real
+                # debugging session down the wrong path.
+                broken = [
+                    tf.class_name for tf in all_tests
+                    if getattr(tf, "compiles", True) is False
+                ]
+                if broken:
+                    report.errors.append(
+                        f"Mutation analysis did not run: {len(broken)} generated "
+                        f"test file(s) do not compile, so the suite cannot be "
+                        f"built and PiTest cannot run — "
+                        f"{', '.join(broken[:5])}"
+                    )
+                    return
                 report.errors.append(
-                    "Mutation analysis did not run (Maven or pitest-maven "
-                    "unavailable) — see warnings above"
+                    "Mutation analysis did not run: "
+                    + MutationAnalyzer.describe_failure(output)
                 )
                 return
             print(f"  [Mutation] {len(failing)} test class(es) fail before "
