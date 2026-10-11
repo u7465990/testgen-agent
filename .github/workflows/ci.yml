@@ -6,12 +6,28 @@ on:
   pull_request:
 
 jobs:
+  # The offline suite: no LLM call, no API key, no JDK, no Maven. That is why it
+  # needs no secrets and costs nothing to run on every push. The e2e tests are
+  # deselected by pytest.ini's addopts; the job below runs them.
+  #
+  # Windows is in the matrix to prove the offline suite itself runs clean there
+  # — path handling, and `.resolve()` not being the identity (tests/
+  # test_java_analyzer.py asserts against `analyzer.project_path` for exactly
+  # that reason). Be precise about what this does NOT cover: the GBK codepage,
+  # which is what makes `print("✓")` fatal on the developer's machine. A
+  # windows-latest runner is English Windows, so that class of bug stays a
+  # manual check. The Windows leg runs 3.12 only; the oldest supported Python
+  # is already covered on ubuntu.
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.10", "3.12"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.10"
 
     steps:
       - uses: actions/checkout@v4
@@ -26,10 +42,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
 
-      # The suite is offline and deterministic by design: no LLM call, no API
-      # key, no JDK, no Maven. That is why this needs no secrets and costs
-      # nothing to run on every push. The e2e tests are deselected by
-      # pytest.ini's addopts; the job below runs them.
       - name: Run tests
         run: pytest -q
 
@@ -38,13 +50,17 @@ jobs:
   # target → prompt → write → javac → report) runs against a real Maven project
   # with the LLM replaced by a recording stub — no API key, no secrets.
   #
-  # Needs a JDK and Maven, which the runner image has but the job sets up
-  # explicitly so the versions do not drift with the image. Ubuntu-only for
-  # now: the Windows-specific paths (mvn.cmd behind `cmd /c`, the classpath
-  # separator) are exercised by whoever runs the suite on Windows, and a
-  # windows-latest leg here is the follow-up that would automate them.
+  # This is the job Windows matters most for: the platform-specific code paths
+  # live here and nowhere else — `mvn.cmd` behind `cmd /c`, the `;` classpath
+  # separator (Windows) vs `:` (elsewhere), and `javac.exe` resolved through
+  # JAVA_HOME.
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
     steps:
       - uses: actions/checkout@v4
 
@@ -54,7 +70,7 @@ jobs:
           python-version: "3.12"
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"

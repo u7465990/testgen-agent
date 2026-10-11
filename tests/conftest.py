@@ -72,7 +72,7 @@ def _never_use_a_real_llm_client(monkeypatch):
     environment happens to hold. Substituting the client rather than refusing
     to build one keeps every test free to construct an `LLMClient` and patch
     `generate` itself, which is exactly what the e2e tests do. See
-    tests/test_llm_isolation.py.
+    tests/test_offline_guarantees.py.
     """
     monkeypatch.setattr(LLMClient, "_init_client",
                         lambda self, key: _NoRealLLMClient())
