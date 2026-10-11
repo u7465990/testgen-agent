@@ -124,6 +124,25 @@ Assertions.assertEquals("Deposit must be positive", ex.getMessage());
 pip install javalang openai anthropic pyyaml
 ```
 
+### Docker（无需本地 JDK 与 Maven）
+
+agent 要驱动 `javac` 和 `mvn`，所以原生运行意味着你得在 `JAVA_HOME` 上挂一个 JDK（是 JDK，不是 JRE），外加 Maven。自带镜像把两者都钉死了，你只需要 Docker：
+
+```bash
+docker build -t testgen-agent .
+
+docker run --rm \
+  -v "$PWD/my-java-project:/work" \
+  -e ANTHROPIC_BASE_URL -e ANTHROPIC_AUTH_TOKEN \
+  testgen-agent generate /work
+```
+
+`generate` 可换成 `analyze` 或 `repair`。若想让 Maven 的依赖缓存在多次运行间保留，把具名 volume 挂到 `/home/testgen/.m2` —— 不挂的话每次运行都会重新下载。
+
+在 Linux 上请用 `--build-arg UID=$(id -u) --build-arg GID=$(id -g)` 构建，这样 agent 写进你项目的文件归你而不是归 root。
+
+> **容器不是沙箱。** 它会对你挂载进去的东西执行 `mvn` 和 `javac`，而 Maven 会执行该项目 `pom.xml` 里声明的插件。因此挂载一个项目和原生运行这个工具是等价的：对付你自己的代码没问题，但别把它当成对付不可信代码的边界。agent 会写进挂载目录 —— 生成的测试、`target/`、`.testgen-agent/`，以及 `--add-mock-deps` 下的 `pom.xml` —— 想保住原项目就挂一份副本。
+
 ### 配置 API Key
 
 ```bash

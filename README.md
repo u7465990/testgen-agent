@@ -125,6 +125,25 @@ See the [JUnit 5 demo README](examples/demo-project-junit5/README.md) for the re
 pip install javalang openai anthropic pyyaml
 ```
 
+### Docker (no local JDK or Maven)
+
+The agent drives `javac` and `mvn`, so running it natively means a JDK on `JAVA_HOME` (a JDK, not a JRE) plus Maven. The bundled image pins both, so the only thing you need is Docker itself:
+
+```bash
+docker build -t testgen-agent .
+
+docker run --rm \
+  -v "$PWD/my-java-project:/work" \
+  -e ANTHROPIC_BASE_URL -e ANTHROPIC_AUTH_TOKEN \
+  testgen-agent generate /work
+```
+
+Use `analyze` or `repair` in place of `generate` as needed. Mount a named volume at `/home/testgen/.m2` if you want Maven's dependency cache to survive across runs — without one, every run re-downloads it.
+
+On Linux, build with `--build-arg UID=$(id -u) --build-arg GID=$(id -g)` so the files the agent writes into your project belong to you rather than to root.
+
+> **The container is not a sandbox.** It runs `mvn` and `javac` against whatever you mount, and Maven executes the plugins that project's `pom.xml` declares. Mounting a project is therefore equivalent to running the tool on it natively: fine for code you own, not a boundary to rely on for code you don't. The agent writes into the mount — generated tests, `target/`, `.testgen-agent/`, and `pom.xml` under `--add-mock-deps` — so mount a copy if you want the original left untouched.
+
 ### Set up API Key
 
 ```bash

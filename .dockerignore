@@ -1,0 +1,32 @@
+# Version control — the single largest thing in the tree.
+.git
+.gitignore
+
+# Python bytecode, caches and build output.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Build/run output from any project in the tree, the bundled demos included.
+# Excluding target/ also keeps a machine-specific target/classpath.txt out of
+# the image, which would otherwise be read as a cached classpath.
+**/target/
+**/.testgen-agent/
+**/*.class
+
+# Prose that is not needed at runtime. Named by extension rather than by path so
+# the non-ASCII scratch filenames at the repo root never have to appear here.
+*.md
+!README.md
+!README.zh-CN.md
+!CLAUDE.md
+
+# Secrets and local environments.
+.env
+venv/
+.venv/
+openai_key.txt
+api-key.txt
