@@ -50,12 +50,18 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
+# --no-deps because the layer above already installed them, which keeps this one
+# cacheable across source edits. Installing the package rather than running
+# `python main.py` means the image exercises the same path a user gets from
+# `pip install .`, so a wheel missing a module fails the build here too.
+RUN pip install --no-deps .
+
 
 # Dev stage: the same toolchain plus pytest, so CI can prove the image works by
 # running the suite inside it rather than trusting that this file is correct.
 # Note this stage deliberately has no ENTRYPOINT — putting one on `base` would
-# make this CMD its arguments ("python /app/main.py python -m pytest"), which is
-# exactly the bug this stage exists to catch.
+# make this CMD its arguments, which is exactly the bug this stage exists to
+# catch.
 FROM base AS test
 RUN pip install -r requirements-dev.txt
 CMD ["python", "-m", "pytest", "-q"]
@@ -63,12 +69,6 @@ CMD ["python", "-m", "pytest", "-q"]
 
 # Last stage, so a plain `docker build .` produces the image you actually run.
 FROM base AS runtime
-
-# Run `python main.py` rather than the installed `testgen-agent` console script.
-# setup.py's find_packages() finds only `extractor` — the other ~19 modules sit
-# flat at the repo root, and `prompts/` is not declared as package data — so a
-# non-editable install exposes neither, and only `pip install -e .` (which puts
-# the source root on sys.path) actually works. Shipping the tree sidesteps it.
-ENTRYPOINT ["python", "/app/main.py"]
+ENTRYPOINT ["testgen-agent"]
 
 USER testgen

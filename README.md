@@ -122,8 +122,12 @@ See the [JUnit 5 demo README](examples/demo-project-junit5/README.md) for the re
 ### Installation
 
 ```bash
-pip install javalang openai anthropic pyyaml
+git clone https://github.com/u7465990/testgen-agent
+cd testgen-agent
+pip install .
 ```
+
+That installs a `testgen-agent` command. If you would rather not install anything, `pip install -r requirements.txt` and run `python main.py` from the clone instead — the two paths are equivalent.
 
 ### Docker (no local JDK or Maven)
 

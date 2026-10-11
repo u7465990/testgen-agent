@@ -121,8 +121,12 @@ Assertions.assertEquals("Deposit must be positive", ex.getMessage());
 ### 安装
 
 ```bash
-pip install javalang openai anthropic pyyaml
+git clone https://github.com/u7465990/testgen-agent
+cd testgen-agent
+pip install .
 ```
+
+这会装上一个 `testgen-agent` 命令。若不想安装，也可以 `pip install -r requirements.txt`，然后在克隆目录里跑 `python main.py` —— 两条路等价。
 
 ### Docker（无需本地 JDK 与 Maven）
 
