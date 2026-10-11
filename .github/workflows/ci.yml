@@ -119,3 +119,56 @@ jobs:
           docker run --rm \
             -v "$PWD/examples/demo-project:/work" \
             testgen-agent analyze /work
+
+  # Every other job runs from the checkout, where the flat modules import
+  # straight off the cwd. This is the only job that exercises the *installed*
+  # package, which is why `pip install .` was able to ship a wheel containing
+  # just `extractor/` for a long time with nothing ever going red.
+  #
+  # Ubuntu-only: the wheel is pure Python and platform-independent, and this job
+  # leans on the POSIX venv layout (`bin/`) for its paths.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel
+
+      - name: Install it into a clean virtualenv
+        run: |
+          python -m venv "$RUNNER_TEMP/installed"
+          "$RUNNER_TEMP/installed/bin/pip" install dist/*.whl
+
+      # Run from RUNNER_TEMP rather than the checkout: from the repo root the
+      # flat modules resolve off the cwd, and a broken wheel would still look
+      # fine — which is exactly how the original breakage stayed hidden.
+      - name: The console script runs
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$RUNNER_TEMP/installed/bin/testgen-agent" --help
+
+      - name: The wheel carries every prompt template
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$RUNNER_TEMP/installed/bin/python" - <<'PY'
+          from pathlib import Path
+
+          import agent
+          import prompt_manager
+
+          manager = prompt_manager.PromptManager(
+              Path(agent.__file__).parent / "prompts"
+          )
+          for name in ("generate_system", "generate_user",
+                       "repair_system", "repair_user"):
+              assert getattr(manager, name), f"template did not load: {name}"
+          print("all four templates loaded from site-packages")
+          PY
