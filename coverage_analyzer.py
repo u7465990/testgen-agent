@@ -186,9 +186,12 @@ class CoverageAnalyzer:
 
     @staticmethod
     def _parse_jvm_desc(desc: str) -> str:
-        """Convert a JVM type descriptor to a human-readable signature.
+        """Convert a JVM type descriptor to a readable signature.
 
-        (Ljava/lang/String;I)Z → (String, int) → boolean
+        Object types keep their fully-qualified form here; `_method_fen` is what
+        reduces them to the simple names a prompt wants.
+
+        (Ljava/lang/String;I)Z → (java.lang.String, int) → boolean
         """
         match = re.match(r"\((.*?)\)(.*)", desc)
         if not match:
