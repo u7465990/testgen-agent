@@ -84,3 +84,38 @@ jobs:
       # Command-line -m overrides pytest.ini's `addopts = -m "not e2e"`.
       - name: Run end-to-end tests
         run: pytest -q -m e2e
+
+  # An image nobody builds is exactly the kind of thing that rots quietly, so
+  # this job exists to fail when the Dockerfile stops working. It builds the
+  # runtime image, runs the offline suite inside the dev stage, then drives the
+  # real CLI against a bundled demo — which is what proves JAVA_HOME and Maven
+  # are wired up *inside* the image rather than only on the runner. No API key:
+  # `analyze` never reaches the LLM.
+  #
+  # Ubuntu-only, and knowingly so: `windows-latest` cannot run Linux
+  # containers, so this is the one place the Windows legs above cannot follow.
+  # The e2e job stays native for that reason.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The agent writes into the mounted project, so the container user has to
+      # match the runner's or those writes fail outright.
+      - name: Build the runtime image
+        run: |
+          docker build \
+            --build-arg UID=$(id -u) \
+            --build-arg GID=$(id -g) \
+            -t testgen-agent .
+
+      - name: Run the offline suite inside the image
+        run: |
+          docker build --target test -t testgen-agent-test .
+          docker run --rm testgen-agent-test
+
+      - name: Analyze a bundled project through the CLI
+        run: |
+          docker run --rm \
+            -v "$PWD/examples/demo-project:/work" \
+            testgen-agent analyze /work
