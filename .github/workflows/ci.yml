@@ -28,6 +28,43 @@ jobs:
 
       # The suite is offline and deterministic by design: no LLM call, no API
       # key, no JDK, no Maven. That is why this needs no secrets and costs
-      # nothing to run on every push.
+      # nothing to run on every push. The e2e tests are deselected by
+      # pytest.ini's addopts; the job below runs them.
       - name: Run tests
         run: pytest -q
+
+  # "End-to-end verified" was a claim the README made while only a human could
+  # reproduce it. This closes the loop: the real pipeline (build → detect →
+  # target → prompt → write → javac → report) runs against a real Maven project
+  # with the LLM replaced by a recording stub — no API key, no secrets.
+  #
+  # Needs a JDK and Maven, which the runner image has but the job sets up
+  # explicitly so the versions do not drift with the image. Ubuntu-only for
+  # now: the Windows-specific paths (mvn.cmd behind `cmd /c`, the classpath
+  # separator) are exercised by whoever runs the suite on Windows, and a
+  # windows-latest leg here is the follow-up that would automate them.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      # Command-line -m overrides pytest.ini's `addopts = -m "not e2e"`.
+      - name: Run end-to-end tests
+        run: pytest -q -m e2e

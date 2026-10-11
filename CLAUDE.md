@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-TestGen Agent is a standalone Python tool that automatically generates **JUnit unit tests (4 or 5)** for Java projects using an LLM (OpenAI, Anthropic, or any Anthropic-compatible endpoint such as DeepSeek). It parses a Java project, extracts methods and branch conditions, generates rule-based test targets, asks an LLM to write a test for each target, compiles the results with `javac`, repairs compilation failures by feeding errors back to the LLM, measures how good the result actually is, and writes a Markdown/JSON/CSV/console report. The only runtime the Python code itself exercises is the LLM and `javac`/`mvn` — the "tests" are generated JUnit files, verified by running `mvn test` against a real Java project (see `examples/demo-project`). There is no Python test suite.
+TestGen Agent is a standalone Python tool that automatically generates **JUnit unit tests (4 or 5)** for Java projects using an LLM (OpenAI, Anthropic, or any Anthropic-compatible endpoint such as DeepSeek). It parses a Java project, extracts methods and branch conditions, generates rule-based test targets, asks an LLM to write a test for each target, compiles the results with `javac`, repairs compilation failures by feeding errors back to the LLM, measures how good the result actually is, and writes a Markdown/JSON/CSV/console report. The only runtime the Python code itself exercises is the LLM and `javac`/`mvn` — the "tests" are generated JUnit files, verified by running `mvn test` against a real Java project (see `examples/demo-project`). The Python code has its own suite in `tests/`, but it covers only the deterministic core and never calls the LLM, `javac` or Maven, so it needs no API key and no JDK. It is deliberately *not* what validates the generated JUnit tests; that is what `mvn test` and the mutation score are for. The one exception is `tests/test_e2e_pipeline.py`, which does drive the real pipeline against a real Maven project — with the LLM replaced by a stub — and so is marked `e2e` and skipped by default (see Commands).
 
 **The framework is detected, not assumed.** `target_profile.py` reads the JUnit version off the project's resolved test classpath and the Java level off its build file (falling back to the compiled `.class` major version, then the running JDK). This mirrors what Surefire itself does, and it is why the same agent emits `org.junit.Assert` for `examples/demo-project` and `org.junit.jupiter.api.Assertions` for `examples/demo-project-junit5`. `--junit {auto,4,5}` and `--java {auto,8,11,17,21}` override it. Do not introduce a global JUnit default — `auto` is the design.
 
@@ -27,11 +27,21 @@ python main.py generate <project-path>
 
 # Re-compile already-generated _Test_*.java files and report status
 python main.py repair <project-path>
+
+# The agent's own tests — offline, no LLM, no JDK, no Maven (~0.3s)
+pip install -r requirements-dev.txt
+pytest -q
+
+# The end-to-end test — needs a JDK and Maven, builds a real Maven project,
+# no API key (the LLM is stubbed). Deselected above; ~30s per demo.
+pytest -q -m e2e
 ```
+
+**The suite is offline by construction, not by convention.** `tests/conftest.py` installs two autouse guards: any outbound socket connection raises, and a constructed `LLMClient` can never reach a live provider client. That is what makes "no API key, no secrets" a property of CI rather than a hope — the offline suite passes with every socket blocked. Both are pinned by `tests/test_offline_guarantees.py`. The `e2e` tests are unaffected: they stub `LLMClient.generate`, and Maven networks inside the JVM rather than through Python sockets. Note that the LLM guard substitutes the *client*, it does not prevent construction — `openai.OpenAI(api_key="")` does not raise (the SDK only objects to `None`), so a guard that merely refused to build one would be testing nothing.
 
 API keys: `OPENAI_API_KEY` (default provider `openai`, model `gpt-4o-mini`), or for Anthropic/DeepSeek use `--provider anthropic` plus `ANTHROPIC_API_KEY` (falls back to `ANTHROPIC_AUTH_TOKEN`) and `ANTHROPIC_BASE_URL` (e.g. `https://api.deepseek.com/anthropic`).
 
-Install as a package (`pip install -e .`) to get a `testgen-agent` console script; otherwise run `python main.py` from the repo root. `requirements.txt` pins the four runtime deps (javalang, openai, anthropic, pyyaml) — there is no dev/test dependency set.
+Install as a package (`pip install -e .`) to get a `testgen-agent` console script; otherwise run `python main.py` from the repo root. `requirements.txt` pins the four runtime deps (javalang, openai, anthropic, pyyaml); `requirements-dev.txt` adds `pytest` and nothing else — the offline suite needs no more, and the `e2e` test borrows `javalang` from the runtime deps. CI (`.github/workflows/ci.yml`) has **two jobs**: `test` runs the offline suite on ubuntu × Python 3.10/3.12, and `e2e` runs `pytest -m e2e` on ubuntu with a JDK and Maven (no secrets — the LLM is stubbed). Both are **ubuntu-only**. The offline job has nothing platform-specific to check; the `e2e` job *does* reach the Windows paths (the classpath separator, `mvn.cmd` behind `cmd /c`), so a `windows-latest` leg is now worth adding — it just has not been.
 
 Useful flags: `--package <pkg>` (takes a **package name** like `com.demo`, repeatable, not a class name), `--exclude <method>`, `--skip-private`, `--include-constructors` (off by default — constructors are not targeted otherwise), `--target-types normal boundary` (also accepts `exception path reflection`), `--max-per-method N` (default 10), `--max-repair N` (default 3), `--extraction-mode {python,sootup}`, `--junit {auto,4,5}` and `--java {auto,8,11,17,21}` (both default `auto` = follow the project), `--add-mock-deps` (the only flag that writes to the target project — see the Mockito gotcha), `--temperature F` (default 0.2), `--api-key K` (overrides the env var), `--output-dir D` (default: the project's `src/test/java`), `--no-coverage` (skips the JaCoCo phase B), `--no-mutation` (skips the PiTest phase 8), `--pitest-version V` (default 1.15.0), `--no-resume` (ignore the JSONL checkpoint and regenerate from scratch), `--report-format {json,csv,both,md,all}` (default `all`), `-v/--verbose`, `--provider anthropic --model <model>`.
 
