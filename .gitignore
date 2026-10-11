@@ -28,6 +28,11 @@ api-key.txt
 
 # Test outputs
 **/.testgen-agent/
+# Coverage artifacts (pytest-cov writes .coverage into the cwd)
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
 **/target/surefire-reports/
 **/target/site/jacoco/
 **/target/pit-reports/

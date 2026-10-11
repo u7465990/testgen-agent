@@ -1,7 +1,13 @@
 # Development-only dependencies. Runtime deps live in requirements.txt.
 #
 # The default test run is deliberately offline and deterministic: no LLM call,
-# no javac, no Maven — so pytest is the whole story. The `e2e`-marked tests
-# (tests/test_e2e_pipeline.py) do shell out to javac and Maven, but pytest.ini
-# deselects them by default; run them with `pytest -m e2e`.
+# no javac, no Maven. The `e2e`-marked tests (tests/test_e2e_pipeline.py) do
+# shell out to javac and Maven, but pytest.ini deselects them by default; run
+# them with `pytest -m e2e`.
+#
+# pytest-cov is for the CI `test` job's coverage report — see .coveragerc for
+# what that number does and does not mean. It is deliberately *not* in
+# pytest.ini's addopts, so a plain `pytest -q` stays fast and needs nothing
+# beyond pytest.
 pytest>=7.0
+pytest-cov>=5.0

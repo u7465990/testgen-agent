@@ -1,0 +1,41 @@
+# Coverage configuration for the tool's own test suite.
+#
+# Why measure this at all: the tool's own argument about the tests it generates
+# is that "it ran" is not "it was checked". The project had no number for itself
+# at all, which is the gap this closes.
+#
+# Worth being precise about what it is, though — coverage is the *weaker* of the
+# two metrics. This repo's headline for generated tests is mutation score
+# (Phase 8); line coverage is only Phase 6. So this does not put the suite on
+# the same footing as the tests it measures. Mutmut or cosmic-ray over these
+# modules would, and that is a much larger job.
+#
+# Scope, stated plainly — the number is easy to misread, so:
+#
+#   * It is measured in the `test` CI job, which deselects the e2e tests. So it
+#     under-reports by design: agent.py, compiler.py and report_generator.py are
+#     driven mainly by the end-to-end test and score far higher with it
+#     included.
+#   * It covers everything that ships, not just the flat modules — hence
+#     extractor/ and main.py being in the table.
+#   * Three entries are low for known reasons, none of them "nobody got round to
+#     it": extractor/sootup_backend.py is the opt-in legacy backend that is
+#     documented to degrade gracefully and is not exercised at all;
+#     main.py scores 0% here only because the offline suite never invokes the
+#     CLI, while the `docker` job does run `analyze` through it; and
+#     llm_client.py's missing lines are the real API calls, which the offline
+#     suite is built never to make.
+#
+# There is deliberately no --cov-fail-under. A floor low enough not to be
+# tripped by Windows-vs-Linux branch differences ("if sys.platform == win32"
+# runs one arm or the other) would be too low to catch anything, and a
+# meaningful one would push towards re-testing offline what e2e already covers.
+[run]
+source = .
+omit =
+    tests/*
+    setup.py
+    skill_entry.py
+
+[report]
+show_missing = True

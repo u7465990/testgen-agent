@@ -42,8 +42,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
 
+      # --cov is passed here rather than in pytest.ini's addopts so a plain
+      # `pytest -q` stays fast and dependency-light. See .coveragerc for what
+      # the number means: it is this offline run only, and the e2e tests —
+      # deselected here — would raise it considerably.
       - name: Run tests
-        run: pytest -q
+        run: pytest -q --cov=.
 
   # "End-to-end verified" was a claim the README made while only a human could
   # reproduce it. This closes the loop: the real pipeline (build → detect →

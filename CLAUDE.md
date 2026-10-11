@@ -32,12 +32,17 @@ python main.py repair <project-path>
 pip install -r requirements-dev.txt
 pytest -q
 
+# The same suite with a line-coverage report (what CI's `test` job runs)
+pytest -q --cov=.
+
 # The end-to-end test — needs a JDK and Maven, builds a real Maven project,
 # no API key (the LLM is stubbed). Deselected above; ~30s per demo.
 pytest -q -m e2e
 ```
 
 **The suite is offline by construction, not by convention.** `tests/conftest.py` installs two autouse guards: any outbound socket connection raises, and a constructed `LLMClient` can never reach a live provider client. That is what makes "no API key, no secrets" a property of CI rather than a hope — the offline suite passes with every socket blocked. Both are pinned by `tests/test_offline_guarantees.py`. The `e2e` tests are unaffected: they stub `LLMClient.generate`, and Maven networks inside the JVM rather than through Python sockets. Note that the LLM guard substitutes the *client*, it does not prevent construction — `openai.OpenAI(api_key="")` does not raise (the SDK only objects to `None`), so a guard that merely refused to build one would be testing nothing.
+
+**The suite measures itself — weakly, and on purpose.** `pytest -q --cov=.` reports line coverage of everything that ships; CI's `test` job runs exactly that. `pytest-cov` is a dev dependency but is deliberately **not** in `pytest.ini`'s `addopts`, so a plain `pytest -q` stays fast and needs nothing beyond pytest. `.coveragerc` is the authority on what the number means, and the short version is that it is the *Phase 6* metric, not the Phase 8 one this project leads with: mutmut or cosmic-ray over these modules would be the measurement that matches the mutation-score headline, and neither has been done. The figure also covers the offline run only — the deselected `e2e` tests drive `agent.py`, `compiler.py` and `report_generator.py` and would raise it. There is no `--cov-fail-under`, for the reasons recorded in that file.
 
 API keys: `OPENAI_API_KEY` (default provider `openai`, model `gpt-4o-mini`), or for Anthropic/DeepSeek use `--provider anthropic` plus `ANTHROPIC_API_KEY` (falls back to `ANTHROPIC_AUTH_TOKEN`) and `ANTHROPIC_BASE_URL` (e.g. `https://api.deepseek.com/anthropic`).
 
