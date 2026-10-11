@@ -1,5 +1,7 @@
 # Development-only dependencies. Runtime deps live in requirements.txt.
 #
-# The test suite is deliberately offline and deterministic: it never calls an
-# LLM and never shells out to javac or Maven, so pytest is the whole story.
+# The default test run is deliberately offline and deterministic: no LLM call,
+# no javac, no Maven — so pytest is the whole story. The `e2e`-marked tests
+# (tests/test_e2e_pipeline.py) do shell out to javac and Maven, but pytest.ini
+# deselects them by default; run them with `pytest -m e2e`.
 pytest>=7.0
