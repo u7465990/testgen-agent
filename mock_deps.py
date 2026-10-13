@@ -108,9 +108,17 @@ def inject_mockito_dependency(
         Anchoring to the line start rather than the marker's column keeps the
         block's own indentation intact — inserting at the marker's index would
         prepend the closing tag's indent to the first line and skew it.
+
+        That only holds when the marker is the first thing on its line. If it
+        shares the line with other content (`<project></project>` written on one
+        line), anchoring to the line start puts the block *before* that content
+        and therefore outside the root element. Validate-before-write catches it
+        and refuses, but the honest fix is to anchor to the marker instead.
         """
         idx = text.index(marker)
         line_start = text.rfind("\n", 0, idx) + 1
+        if text[line_start:idx].strip():
+            return text[:idx] + "\n" + payload + "\n" + text[idx:]
         return text[:line_start] + payload + "\n" + text[line_start:]
 
     if "</dependencies>" in original:
