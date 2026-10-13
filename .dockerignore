@@ -21,7 +21,6 @@ dist/
 # the non-ASCII scratch filenames at the repo root never have to appear here.
 *.md
 !README.md
-!README.zh-CN.md
 !CLAUDE.md
 
 # Secrets and local environments.
