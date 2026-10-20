@@ -62,9 +62,42 @@ class JavalangBackend(ExtractorBackend):
         # Set by the agent once it has discovered the project's source files;
         # without it no collaborator type name can be resolved to real source.
         self._source_index = None
+        # Files this backend could not read or parse. A parser failure used to
+        # only print a warning, which meant a modern-syntax file silently
+        # disappeared from the run and its methods from every reported count.
+        # The agent copies this list into the report.
+        self.parse_failures: List[Dict[str, str]] = []
 
     def set_source_index(self, source_index) -> None:
         self._source_index = source_index
+
+    def clear_parse_failures(self) -> None:
+        """Start a new run's failure list (the backend outlives one run)."""
+        self.parse_failures.clear()
+
+    def _record_parse_failure(
+        self, source_file: SourceFile, stage: str, error: Exception
+    ) -> None:
+        """Keep a machine-readable record, not just a console warning."""
+        detail = (
+            str(error).strip()
+            or str(getattr(error, "description", "")).strip()
+            or type(error).__name__
+        )
+        position = getattr(error, "at", None) or getattr(error, "position", None)
+        line = getattr(position, "line", None)
+        column = getattr(position, "column", None)
+        if line is not None:
+            detail += f" (line {line}"
+            if column is not None:
+                detail += f", column {column}"
+            detail += ")"
+        self.parse_failures.append({
+            "file": str(source_file.path),
+            "module": source_file.module_name,
+            "stage": stage,
+            "error": f"{type(error).__name__}: {detail}",
+        })
 
     @property
     def name(self) -> str:
@@ -81,13 +114,17 @@ class JavalangBackend(ExtractorBackend):
         try:
             source_text = source_file.path.read_text(encoding="utf-8")
         except Exception as e:
-            print(f"  [WARN] Cannot read {source_file.path}: {e}")
+            self._record_parse_failure(source_file, "read", e)
+            print(f"  [WARN] Cannot read {source_file.path}: "
+                  f"{self.parse_failures[-1]['error']}")
             return []
 
         try:
             tree = parse.parse(source_text)
         except Exception as e:
-            print(f"  [WARN] Failed to parse {source_file.path}: {e}")
+            self._record_parse_failure(source_file, "parse", e)
+            print(f"  [WARN] Failed to parse {source_file.path}: "
+                  f"{self.parse_failures[-1]['error']}")
             return []
 
         file_imports = self._collect_imports(tree)

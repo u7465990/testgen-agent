@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.example</groupId>
+  <artifactId>demo-project-multimodule</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+
+  <name>demo-project-multimodule</name>
+  <description>Baseline fixture for modern multi-module Maven support. Three
+    modules, Java 17, JUnit 5, and deliberate modern syntax (records, switch
+    expressions, pattern matching, text blocks). At M0 the modern files are
+    expected to show up as parse failures in the report; that is the known gap
+    the M1 parser backend closes. Do not add classes here without updating the
+    M0 baseline test.</description>
+
+  <modules>
+    <module>core</module>
+    <module>service</module>
+    <module>app</module>
+  </modules>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <junit.version>5.10.2</junit.version>
+    <surefire.version>3.2.5</surefire.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <!-- Inherited by every module: generated tests live next to their module's
+       production code, so each of them needs JUnit on the test classpath. -->
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- The includes match testgen-agent's generated file names:
+           ClassName_method_ParamType_Test_Type_N. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire.version}</version>
+        <configuration>
+          <includes>
+            <include>**/*_Test_*.java</include>
+            <include>**Test.java</include>
+          </includes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

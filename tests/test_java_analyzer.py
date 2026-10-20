@@ -313,14 +313,112 @@ class TestFindCompiledClasses:
 
 
 class TestFindMavenModules:
-    def test_subdirectory_with_a_pom_is_a_module(self, tmp_path):
+    def test_declared_submodule_is_a_module(self, tmp_path):
+        analyzer = JavaProjectAnalyzer(tmp_path)
+        _write(
+            analyzer.project_path / "pom.xml",
+            "<project><modules><module>core</module></modules></project>",
+        )
+        _write(analyzer.project_path / "core/pom.xml", "<project/>")
+        assert analyzer.find_maven_modules() == [analyzer.project_path / "core"]
+
+    def test_undeclared_subdirectory_with_a_pom_is_not_a_module(self, tmp_path):
+        # Maven's semantics, not "any directory that contains a pom.xml".
+        # The old heuristic treated an example/fixture directory as a module.
         analyzer = JavaProjectAnalyzer(tmp_path)
         _write(analyzer.project_path / "pom.xml", "<project/>")
         _write(analyzer.project_path / "core/pom.xml", "<project/>")
         (analyzer.project_path / "docs").mkdir()
+        assert analyzer.find_maven_modules() == []
+
+    def test_namespaced_pom_modules_are_found(self, tmp_path):
+        analyzer = JavaProjectAnalyzer(tmp_path)
+        _write(
+            analyzer.project_path / "pom.xml",
+            '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+            "<modules><module>core</module></modules></project>",
+        )
+        _write(analyzer.project_path / "core/pom.xml", "<project/>")
         assert analyzer.find_maven_modules() == [analyzer.project_path / "core"]
+
+    def test_nested_module_path_is_preserved_as_its_name(self, tmp_path):
+        analyzer = JavaProjectAnalyzer(tmp_path)
+        _write(
+            analyzer.project_path / "pom.xml",
+            "<project><modules><module>services/billing</module>"
+            "</modules></project>",
+        )
+        _write(analyzer.project_path / "services/billing/pom.xml", "<project/>")
+        assert analyzer.find_module_roots() == [
+            ("services/billing", analyzer.project_path / "services/billing")
+        ]
 
     def test_without_a_root_pom_there_are_no_modules(self, tmp_path):
         analyzer = JavaProjectAnalyzer(tmp_path)
         _write(analyzer.project_path / "core/pom.xml", "<project/>")
         assert analyzer.find_maven_modules() == []
+
+
+class TestFindSourceFilesInModules:
+    def _multi_module(self, tmp_path):
+        analyzer = JavaProjectAnalyzer(tmp_path)
+        root = analyzer.project_path
+        _write(
+            root / "pom.xml",
+            "<project><modules><module>core</module>"
+            "<module>service</module></modules></project>",
+        )
+        _write(root / "core/pom.xml", "<project/>")
+        _write(root / "service/pom.xml", "<project/>")
+        _write(
+            root / "core/src/main/java/com/example/core/A.java",
+            "package com.example.core;",
+        )
+        _write(
+            root / "service/src/main/java/com/example/service/B.java",
+            "package com.example.service;",
+        )
+        return analyzer
+
+    def test_each_module_keeps_its_own_sources(self, tmp_path):
+        analyzer = self._multi_module(tmp_path)
+        found = analyzer.find_source_files()
+        assert {(f.module_name, f.path.stem) for f in found} == {
+            ("core", "A"), ("service", "B"),
+        }
+        assert {f.package_name for f in found} == {
+            "com.example.core", "com.example.service",
+        }
+
+    def test_root_sources_are_kept_alongside_modules(self, tmp_path):
+        analyzer = self._multi_module(tmp_path)
+        _write(
+            analyzer.project_path / "src/main/java/com/example/root/Root.java",
+            "package com.example.root;",
+        )
+        found = analyzer.find_source_files()
+        assert {(f.module_name, f.path.stem) for f in found} == {
+            ("", "Root"), ("core", "A"), ("service", "B"),
+        }
+
+    def test_module_name_for_path_uses_the_deepest_module(self, tmp_path):
+        analyzer = self._multi_module(tmp_path)
+        module_file = analyzer.project_path / "core/src/main/java/com/example/core/A.java"
+        assert analyzer.module_name_for_path(module_file) == "core"
+        assert analyzer.module_name_for_path(analyzer.project_path / "pom.xml") == ""
+
+    def test_fallback_attributes_files_to_their_module(self, tmp_path):
+        # No standard src/main/java anywhere: the whole-project walk still has
+        # to say which module a file came from.
+        analyzer = JavaProjectAnalyzer(tmp_path)
+        _write(
+            analyzer.project_path / "pom.xml",
+            "<project><modules><module>core</module></modules></project>",
+        )
+        _write(analyzer.project_path / "core/pom.xml", "<project/>")
+        _write(
+            analyzer.project_path / "core/demo/Foo.java",
+            "package com.example;\n",
+        )
+        (found,) = analyzer.find_source_files()
+        assert found.module_name == "core"

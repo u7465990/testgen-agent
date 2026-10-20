@@ -38,6 +38,12 @@ class AgentReport:
     source_files_found: int = 0
     methods_found: int = 0
     methods_targeted: int = 0
+    # Files the extractor could not read or parse. Recorded rather than only
+    # printed: a silently skipped file is a silent hole in methods_found.
+    parse_failures: List[Dict[str, str]] = field(default_factory=list)
+    # Per-module source/method/test counts for a multi-module Maven build.
+    # Empty for a single-module project.
+    module_stats: Dict[str, Dict[str, int]] = field(default_factory=dict)
 
     # Generation
     tests_generated: int = 0
@@ -97,6 +103,14 @@ class ReportGenerator:
             print(f"  Target:         Java {report.target_profile.get('java_version')}"
                   f" / JUnit {report.target_profile.get('junit_version')}")
         print(f"  Source files:   {report.source_files_found}")
+        if report.module_stats:
+            print(f"  Modules:        {len(report.module_stats)}")
+            for name in sorted(report.module_stats):
+                st = report.module_stats[name]
+                label = name or "(root)"
+                print(f"    {label:<26} files={st.get('source_files', 0):<4} "
+                      f"methods={st.get('methods_found', 0):<4} "
+                      f"tests={st.get('tests_generated', 0)}")
         print(f"  Methods found:  {report.methods_found}")
         print(f"  Methods targeted: {report.methods_targeted}")
         print(f"  Tests generated:  {report.tests_generated}")
@@ -153,6 +167,13 @@ class ReportGenerator:
             print(f"\n  Errors ({len(report.errors)}):")
             for e in report.errors:
                 print(f"    - {e}")
+
+        if report.parse_failures:
+            print(f"\n  Skipped source files ({len(report.parse_failures)}):")
+            for failure in report.parse_failures:
+                module = failure.get("module") or "(root)"
+                print(f"    - [{module}] {failure.get('file', '?')}")
+                print(f"      {failure.get('error', '')}")
 
         if report.method_reports:
             print(f"\n  Per-method breakdown:")
@@ -246,6 +267,22 @@ class ReportGenerator:
         out.append(f"- 生成测试: **{report.tests_generated}**")
         out.append("")
 
+        if report.module_stats:
+            out.append("### 模块")
+            out.append("")
+            out.append("| 模块 | 源文件 | 提取方法 | 生成测试 | 编译通过 |")
+            out.append("|---|---:|---:|---:|---:|")
+            for name in sorted(report.module_stats):
+                st = report.module_stats[name]
+                label = name or "(root)"
+                out.append(
+                    f"| `{label}` | {st.get('source_files', 0)} | "
+                    f"{st.get('methods_found', 0)} | "
+                    f"{st.get('tests_generated', 0)} | "
+                    f"{st.get('tests_compiled', 0)} |"
+                )
+            out.append("")
+
         # ── Weakest classes ──
         scored = [c for c in report.mutation_by_class if c.get("total")]
         if scored:
@@ -285,6 +322,18 @@ class ReportGenerator:
                 f"**{report.mutations_no_coverage} 个 mutant 从未被执行**"
                 f" —— 对应代码分支没有任何测试触及。"
             ])
+        if report.parse_failures:
+            block = [
+                f"**{len(report.parse_failures)} 个源文件解析失败，已跳过**"
+                f"（上述方法数不包含这些文件）:"
+            ]
+            for failure in report.parse_failures:
+                module = failure.get("module") or "(root)"
+                block.append(
+                    f"- `[{module}] {failure.get('file', '?')}` — "
+                    f"{failure.get('error', '')}"
+                )
+            blocks.append(block)
         if report.errors:
             blocks.append(
                 [f"**{len(report.errors)} 个错误**:"]
@@ -375,6 +424,10 @@ class ReportGenerator:
                 for key, val in asdict(report).items():
                     if not isinstance(val, (list, dict)):
                         w.writerow([key, val])
+                if report.parse_failures:
+                    w.writerow(["parse_failures", len(report.parse_failures)])
+                if report.module_stats:
+                    w.writerow(["modules", len(report.module_stats)])
             return
 
         # Column order matching existing pipeline

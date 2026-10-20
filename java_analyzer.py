@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -40,6 +41,7 @@ class JavaProjectAnalyzer:
     def __init__(self, project_path: Path):
         self.project_path = project_path.resolve()
         self._build_tool: Optional[str] = None
+        self._modules: Optional[List[Path]] = None
 
     # ── Build tool detection ──────────────────────────────────
 
@@ -64,16 +66,37 @@ class JavaProjectAnalyzer:
     # ── Source file discovery ─────────────────────────────────
 
     def find_source_files(self) -> List[SourceFile]:
-        """Walk standard source directories and return all .java files."""
-        candidates = self._source_root_candidates()
-        found: List[SourceFile] = []
+        """Walk every module's standard source directories for .java files.
 
-        for src_root in candidates:
-            if not src_root.is_dir():
-                continue
-            for jfile in src_root.rglob("*.java"):
-                pkg = self._package_from_path(jfile, src_root)
-                found.append(SourceFile(jfile, pkg))
+        A multi-module Maven project has no sources at the root: each module
+        keeps its own `src/main/java`. Walking only the root used to yield zero
+        files (or, worse, the whole-project fallback occasionally found them),
+        so module roots and the root project are both walked here. Each source
+        file carries the module it belongs to, which is what lets the report
+        say *where* a file was lost or a test was written.
+
+        Order is the root project first, then modules sorted by name. Within a
+        module the rglob order is preserved: generated class names are derived
+        from a counter, and re-sorting existing single-module projects would
+        rename every committed test.
+        """
+        module_roots = self.find_module_roots()
+        roots: List[Tuple[str, Path]] = [("", self.project_path)]
+        roots.extend(module_roots)
+
+        found: List[SourceFile] = []
+        seen: set = set()
+        for module_name, root in roots:
+            for src_root in self._source_roots_for(root):
+                if not src_root.is_dir():
+                    continue
+                for jfile in src_root.rglob("*.java"):
+                    key = os.path.normcase(str(jfile.resolve()))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    pkg = self._package_from_path(jfile, src_root)
+                    found.append(SourceFile(jfile, pkg, module_name))
 
         # Fallback: walk entire project for .java files if nothing found
         if not found:
@@ -84,21 +107,23 @@ class JavaProjectAnalyzer:
                 if "test" in jfile.parts:
                     continue
                 pkg = self._package_from_fallback(jfile)
-                found.append(SourceFile(jfile, pkg))
+                found.append(SourceFile(
+                    jfile, pkg, self.module_name_for_path(jfile)
+                ))
 
         return found
 
     def _source_root_candidates(self) -> List[Path]:
-        """Return likely source root directories."""
+        """Return likely source root directories for the root project."""
+        return self._source_roots_for(self.project_path)
+
+    def _source_roots_for(self, root: Path) -> List[Path]:
+        """Standard source roots below one project/module directory."""
         standard = ["src/main/java"]
         build_tool = self.detect_build_tool()
-        if build_tool == "maven":
-            standard = ["src/main/java"]
-        elif build_tool == "ant":
+        if build_tool == "ant":
             standard = ["src/main/java", "src/java", "java"]
-        elif build_tool == "gradle":
-            standard = ["src/main/java"]
-        return [self.project_path / d for d in standard]
+        return [root / d for d in standard]
 
     def _package_from_path(self, jfile: Path, src_root: Path) -> str:
         """Derive package name from file's path relative to source root."""
@@ -345,13 +370,76 @@ class JavaProjectAnalyzer:
     # ── Multi-module Maven support ────────────────────────────
 
     def find_maven_modules(self) -> List[Path]:
-        """Discover Maven sub-modules via the parent pom.xml."""
-        modules: List[Path] = []
+        """Sub-module directories declared by the root pom's <modules>.
+
+        Maven's semantics are used, not a directory heuristic: a directory
+        that merely contains a pom.xml is not a module unless the root pom
+        declares it. The old heuristic treated example/fixture directories as
+        modules, which made a single-module project look multi-module.
+        """
+        if self._modules is not None:
+            return list(self._modules)
+
         pom = self.project_path / "pom.xml"
-        if not pom.is_file():
-            return modules
-        # Simple heuristic: look for sub-module directories with their own pom.xml
-        for candidate in self.project_path.iterdir():
-            if candidate.is_dir() and (candidate / "pom.xml").is_file():
-                modules.append(candidate)
-        return modules
+        modules: List[Path] = []
+        if pom.is_file():
+            try:
+                root = ET.parse(str(pom)).getroot()
+            except (ET.ParseError, OSError):
+                root = None
+            if root is not None:
+                for element in root.iter():
+                    if self._local_name(element.tag) != "module":
+                        continue
+                    rel = (element.text or "").strip()
+                    if not rel:
+                        continue
+                    candidate = (self.project_path / rel).resolve()
+                    try:
+                        candidate.relative_to(self.project_path)
+                    except ValueError:
+                        continue  # a module path escaping the project root
+                    if candidate.is_dir() and (candidate / "pom.xml").is_file():
+                        if candidate not in modules:
+                            modules.append(candidate)
+
+        self._modules = modules
+        return list(modules)
+
+    @staticmethod
+    def _local_name(tag: str) -> str:
+        """Element name without the POM XML namespace."""
+        return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+    def find_module_roots(self) -> List[Tuple[str, Path]]:
+        """(display name, path) for each declared module, sorted by name.
+
+        The display name is the module path relative to the project root,
+        e.g. "core" or "services/billing" — the same value Maven writes inside
+        <module>, so it can be matched against build output and reports.
+        """
+        roots: List[Tuple[str, Path]] = []
+        for module in self.find_maven_modules():
+            try:
+                name = module.relative_to(self.project_path).as_posix()
+            except ValueError:
+                name = module.name
+            roots.append((name, module))
+        return sorted(roots, key=lambda item: item[0])
+
+    def module_name_for_path(self, path: Path) -> str:
+        """The declared module a path belongs to, or "" for the root project."""
+        try:
+            resolved = path.resolve()
+        except OSError:
+            resolved = path
+        best = ""
+        best_len = -1
+        for name, root in self.find_module_roots():
+            try:
+                resolved.relative_to(root)
+            except ValueError:
+                continue
+            if len(str(root)) > best_len:
+                best, best_len = name, len(str(root))
+        return best
