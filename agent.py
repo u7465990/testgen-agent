@@ -152,6 +152,19 @@ class TestGeneratorAgent:
             report.duration_seconds = time.time() - start
             return report
 
+        # Per-module counts. A multi-module project's report has to say which
+        # module a file or test belongs to; a single flat total hides both a
+        # module that produced nothing and one that lost every file.
+        module_roots = self.analyzer.find_module_roots()
+        if module_roots:
+            for name, _ in module_roots:
+                report.module_stats[name] = self._empty_module_stats()
+            for src in sources:
+                bucket = report.module_stats.setdefault(
+                    src.module_name, self._empty_module_stats()
+                )
+                bucket["source_files"] += 1
+
         print(f"  Found {len(sources)} source files")
 
         # Build the project before generating anything. Generated tests
@@ -205,6 +218,9 @@ class TestGeneratorAgent:
         # monotonic (it advances even for skipped targets) so class names
         # match a full run exactly — this is what makes resume safe.
         self._phase("Phases 2-4: Filtering, Targets & Generation (streaming)")
+        # The mock-deps probe may already have parsed the project; start the
+        # failure list fresh so its repeated warnings are not counted twice.
+        self.extractor.clear_parse_failures()
         test_files: List[TestFile] = []
         methods_found = 0
         methods_targeted = 0
@@ -215,6 +231,10 @@ class TestGeneratorAgent:
             methods_found += len(methods)
             targeted = self._filter_methods(methods)
             methods_targeted += len(targeted)
+            bucket = report.module_stats.get(src.module_name)
+            if bucket is not None:
+                bucket["methods_found"] += len(methods)
+                bucket["methods_targeted"] += len(targeted)
 
             for method in targeted:
                 for target in self.target_gen.generate_targets(method):
@@ -264,6 +284,20 @@ class TestGeneratorAgent:
         report.tests_generated = counter
         print(f"  {methods_found} methods extracted, {methods_targeted} "
               f"targeted, {counter} test targets ({skipped} skipped)")
+
+        # Surface parse failures in the report, not just in a warning line on
+        # the console. Without this a modern-syntax file disappears from the
+        # run and the method count silently shrinks.
+        report.parse_failures = self.extractor.parse_failures
+        if report.parse_failures:
+            message = (
+                f"{len(report.parse_failures)} source file(s) could not be "
+                f"parsed and were skipped; their methods are missing from the "
+                f"counts (see parse_failures in the report)"
+            )
+            print(f"  [WARN] {message}")
+            logger.warning(message)
+            report.errors.append(message)
 
         if methods_targeted == 0:
             report.errors.append("No methods matched the filter criteria")
@@ -322,6 +356,23 @@ class TestGeneratorAgent:
             report.tests_runnable / report.tests_generated
             if report.tests_generated > 0 else 0.0
         )
+
+        # Per-module test counts are computed from the files that actually
+        # exist (new, coverage-added and resumed alike), not from the global
+        # counter, so the numbers add up to the report's own file list.
+        if report.module_stats:
+            for tf in all_tests:
+                module = self.analyzer.module_name_for_path(
+                    Path(tf.method.source_file)
+                )
+                bucket = report.module_stats.setdefault(
+                    module, self._empty_module_stats()
+                )
+                bucket["tests_generated"] += 1
+                if tf.compiles:
+                    bucket["tests_compiled"] += 1
+                if tf.runnable:
+                    bucket["tests_runnable"] += 1
 
         # ── Build per-method reports ─────────────────────────
         method_map: Dict[str, MethodReport] = {}
@@ -680,6 +731,20 @@ class TestGeneratorAgent:
 
         print(f"  Mutation score: {result.score:.1%} "
               f"({result.killed}/{result.total} mutants killed)")
+
+    # ── Reporting helpers ─────────────────────────────────────
+
+    @staticmethod
+    def _empty_module_stats() -> Dict[str, int]:
+        """The per-module counters used by AgentReport.module_stats."""
+        return {
+            "source_files": 0,
+            "methods_found": 0,
+            "methods_targeted": 0,
+            "tests_generated": 0,
+            "tests_compiled": 0,
+            "tests_runnable": 0,
+        }
 
     # ── Method filtering ──────────────────────────────────────
 

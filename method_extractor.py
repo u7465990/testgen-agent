@@ -228,6 +228,21 @@ class MethodExtractor:
             if callable(setter):
                 setter(source_index)
 
+    @property
+    def parse_failures(self) -> List[dict]:
+        """Files the primary backend could not read or parse this run."""
+        return list(getattr(self._primary, "parse_failures", []))
+
+    def clear_parse_failures(self) -> None:
+        """Reset the failure list before a new extraction pass."""
+        clear = getattr(self._primary, "clear_parse_failures", None)
+        if callable(clear):
+            clear()
+        if self._sootup is not None:
+            clear = getattr(self._sootup, "clear_parse_failures", None)
+            if callable(clear):
+                clear()
+
     def extract_methods(self, source_file: SourceFile) -> List[MethodInfo]:
         """Extract methods from a source file.
 

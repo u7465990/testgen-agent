@@ -33,7 +33,7 @@ api-key.txt
 .coverage.*
 htmlcov/
 coverage.xml
-**/target/surefire-reports/
-**/target/site/jacoco/
-**/target/pit-reports/
+# Maven/Gradle build output. The demo fixtures are built in place; compiled
+# classes, reports and the cached classpath must never be committed.
+**/target/
 **/classpath.txt

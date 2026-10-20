@@ -84,18 +84,56 @@ def cmd_analyze(config: AgentConfig) -> None:
     print()
 
     sources = analyzer.find_source_files()
-    print(f"Found {len(sources)} source files:\n")
+    modules = analyzer.find_module_roots()
+    module_note = f" in {len(modules)} modules" if modules else ""
+    print(f"Found {len(sources)} source files{module_note}:\n")
 
-    total_methods = 0
-    for src in sources:
-        total_methods += len(extractor.extract_methods(src))
-    logger.info("analyze: %d source files, %d methods, build tool=%s",
-                len(sources), total_methods, analyzer.detect_build_tool())
+    # Extract once. The previous loop extracted every file twice (once to
+    # count, once to print), which doubled the parser work and would double
+    # every parse-failure entry.
+    extractor.clear_parse_failures()
+    methods_by_source = {
+        src.path: extractor.extract_methods(src) for src in sources
+    }
+
+    if modules:
+        stats = {name: {"files": 0, "methods": 0} for name, _ in modules}
+        for src in sources:
+            bucket = stats.setdefault(
+                src.module_name, {"files": 0, "methods": 0}
+            )
+            bucket["files"] += 1
+            bucket["methods"] += len(methods_by_source[src.path])
+        # Only show a root bucket when the aggregator has sources of its own.
+        if not stats.get("", {}).get("files"):
+            stats.pop("", None)
+        print("Modules:")
+        for name in sorted(stats):
+            bucket = stats[name]
+            label = name or "(root)"
+            print(f"  {label:<24} files={bucket['files']:<4} "
+                  f"methods={bucket['methods']}")
+        print()
+
+    total_methods = sum(len(v) for v in methods_by_source.values())
+    failures = extractor.parse_failures
+    logger.info(
+        "analyze: %d source files, %d methods, %d parse failures, "
+        "build tool=%s",
+        len(sources), total_methods, len(failures),
+        analyzer.detect_build_tool(),
+    )
     logger.debug("classpath: %s", analyzer.resolve_classpath())
 
+    failed_paths = {f["file"] for f in failures}
     for src in sources:
-        methods = extractor.extract_methods(src)
-        print(f"  {src.qualified_name}")
+        methods = methods_by_source[src.path]
+        module_label = f"  [module: {src.module_name}]" if src.module_name else ""
+        skipped_label = (
+            "  [SKIPPED: parse failure]"
+            if str(src.path) in failed_paths else ""
+        )
+        print(f"  {src.qualified_name}{module_label}{skipped_label}")
         print(f"    File: {src.path}")
         for m in methods:
             mods = " ".join(m.modifiers)
@@ -110,6 +148,17 @@ def cmd_analyze(config: AgentConfig) -> None:
             if m.throws_exceptions:
                 print(f"      throws: {', '.join(m.throws_exceptions)}")
         print()
+
+    if failures:
+        print(f"[WARN] {len(failures)} source file(s) could not be parsed and "
+              f"were skipped:")
+        for failure in failures:
+            module = failure.get("module") or "(root)"
+            print(f"  - [{module}] {failure.get('file')}")
+            print(f"    {failure.get('error')}")
+        print("       The method count above does NOT include these files.")
+    else:
+        print("[OK] All source files parsed successfully.")
 
 
 def cmd_generate(config: AgentConfig) -> None:
